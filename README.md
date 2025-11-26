@@ -45,6 +45,13 @@ Our approach leverages a **Diffusion Transformer (DiT)** based generative model,
 
 ---
 
+## Roadmap & TODO 🗺️
+
+- [x] Release beta version inference code and model checkpoints (currently supports Chinese & lower audio quality).
+- [ ] Release V1 Version: Support for Chinese & English singing with higher audio quality and better generalization.
+
+---
+
 ## Installation 🛠️
 
 ```bash
@@ -63,36 +70,30 @@ pip install -r requirements.txt
 ### 1. Singing Voice Synthesis
 
 ```bash
+# Please keep the prompt audio duration is around 5-7 seconds, and the total duration does not exceed 30 seconds.
 python src/singer/model.py --ckpt_path "ckpt_path" \
     --timbre_audio_path "resources/audios/0000.wav" \
     --timbre_audio_content "在爱的回归线 又期待相见" \
     --melody_audio_path "resources/audios/mxsf.wav" \
     --lyrics "你说 你爱了不该爱的人 你的心中满是伤痕" \
     --out_path "test_yingsinger_zs.wav" \
-    --cfg_strength 2.0 \
+    --cfg_strength 3.0 \
     --nfe_steps 100
 ```
 
 ### 2. Singing Voice Editing
 
 ```bash
+# Please keep the prompt audio duration is around 5-7 seconds, and the total duration does not exceed 30 seconds.
 python src/singer/model.py --ckpt_path "ckpt_path" \
     --timbre_audio_path "resources/audios/mxsf.wav" \
     --timbre_audio_content "你说 你爱了不该爱的人 你的心中满是伤痕" \
     --melody_audio_path "resources/audios/mxsf.wav" \
     --lyrics "你说 你演错了剧本 赔尽了天真心真" \
     --out_path "outputs/test_yingsinger.wav" \
-    --cfg_strength 2.0 \
+    --cfg_strength 3.0 \
     --nfe_steps 100
 ```
-
----
-
-## Roadmap & TODO 🗺️
-
-- [x] Release beta version inference code and model checkpoints (currently supports Chinese & lower audio quality).
-- [ ] Release V1 Version: Support for Chinese & English singing with higher audio quality and better generalization.
-<!-- - [ ] Release training code. -->
 
 ---
 
