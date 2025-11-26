@@ -67,6 +67,8 @@ pip install -r requirements.txt
 
 ## Quick Start 🚀
 
+Download model checkpoints from [huggingface](https://huggingface.co/GiantAILab/YingMusic-Singer)
+
 ### 1. Singing Voice Synthesis
 
 ```bash
