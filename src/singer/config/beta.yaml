@@ -1,8 +1,8 @@
-model:
+decoder:
   name: full_beta
   tokenizer: pinyin
   tokenizer_path: null
-  backbone: DiT
+  backbone: singer.decoder.dit.DiT
   arch:
     dim: 1024
     depth: 22
@@ -25,3 +25,7 @@ model:
     mel_spec_type: vocos
   vocoder:
     is_local: False
+    path: ""
+
+melody_encoder:
+  backbone: singer.melody.midi_extractor.MIDIExtractor

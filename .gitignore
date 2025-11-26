@@ -1,0 +1,6 @@
+__pycache__
+resources/infer_out
+
+outputs
+*pt
+./*wav

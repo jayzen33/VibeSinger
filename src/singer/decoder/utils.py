@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import random
 from collections import defaultdict
-from importlib.resources import files
 
 import jieba
 import torch

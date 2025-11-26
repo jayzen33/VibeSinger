@@ -11,7 +11,10 @@ from __future__ import annotations
 
 import torch
 import torch.nn.functional as F
-from f5_tts.model.modules import (
+from torch import nn
+from x_transformers.x_transformers import RotaryEmbedding
+
+from singer.decoder.modules import (
     AdaLayerNorm_Final,
     ConvNeXtV2Block,
     ConvPositionEmbedding,
@@ -20,9 +23,6 @@ from f5_tts.model.modules import (
     get_pos_embed_indices,
     precompute_freqs_cis,
 )
-from f5_tts.model.utils import calculate_similarity_matrix_with_mask
-from torch import nn
-from x_transformers.x_transformers import RotaryEmbedding
 
 # Text embedding
 
@@ -140,26 +140,26 @@ class InputEmbedding(nn.Module):
         self.proj = nn.Linear(mel_dim * 2 + text_dim + midi_dim, out_dim)
         self.conv_pos_embed = ConvPositionEmbedding(dim=out_dim)
 
-        self.midi_proj = nn.Linear(128, 128)
+        self.melody_proj = nn.Linear(128, 128)
 
     def forward(
         self,
         x: float["b n d"],  # noqa: F722
         cond: float["b n d"],  # noqa: F722
         text_embed: float["b n d"],  # noqa: F722
-        midi,
+        melody,
         drop_audio_cond=False,
-        drop_midi=False,
+        drop_melody=False,
     ):
         if drop_audio_cond:  # cfg for cond audio
             cond = torch.zeros_like(cond)
 
-        midi = self.midi_proj(midi)
+        melody = self.melody_proj(melody)
 
-        if drop_midi:  # cfg for f0
-            midi = midi * 0
+        if drop_melody:  # cfg for f0
+            melody = melody * 0
 
-        x = self.proj(torch.cat((x, cond, text_embed, midi), dim=-1))
+        x = self.proj(torch.cat((x, cond, text_embed, melody), dim=-1))
         x = self.conv_pos_embed(x) + x
         return x
 
@@ -196,7 +196,7 @@ class DiT(nn.Module):
         self.time_embed = TimestepEmbedding(dim)
         if text_dim is None:
             text_dim = mel_dim
-        self.text_embed_p = TextEmbedding(
+        self.text_embed = TextEmbedding(
             text_num_embeds,
             text_dim,
             mask_padding=text_mask_padding,
@@ -204,7 +204,7 @@ class DiT(nn.Module):
             conv_layers=conv_layers,
         )
         self.text_cond, self.text_uncond = None, None  # text cache
-        self.input_embed_with_midi = InputEmbedding(mel_dim, text_dim, dim)
+        self.input_embed_with_melody = InputEmbedding(mel_dim, text_dim, dim)
 
         self.rotary_embed = RotaryEmbedding(dim_head)
 
@@ -248,8 +248,8 @@ class DiT(nn.Module):
         nn.init.constant_(self.proj_out.weight, 0)
         nn.init.constant_(self.proj_out.bias, 0)
 
-        nn.init.zeros_(self.input_embed_with_midi.midi_proj.weight)
-        nn.init.zeros_(self.input_embed_with_midi.midi_proj.bias)
+        nn.init.zeros_(self.input_embed_with_melody.melody_proj.weight)
+        nn.init.zeros_(self.input_embed_with_melody.melody_proj.bias)
 
     def ckpt_wrapper(self, module):
         # https://github.com/chuanyangjin/fast-DiT/blob/main/models.py
@@ -264,10 +264,10 @@ class DiT(nn.Module):
         x,  # b n d
         cond,  # b n d
         text,  # b nt
-        midi,  # b n
+        melody,  # b n
         drop_audio_cond: bool = False,
         drop_text: bool = False,
-        drop_midi: bool = False,
+        drop_melody: bool = False,
         cache: bool = True,
         audio_mask: bool["b n"] | None = None,  # noqa: F722
     ):
@@ -276,19 +276,21 @@ class DiT(nn.Module):
         if cache:
             if drop_text:
                 if self.text_uncond is None:
-                    self.text_uncond, _ = self.text_embed_p(text, seq_len, drop_text=True, audio_mask=audio_mask)
+                    self.text_uncond, _ = self.text_embed(text, seq_len, drop_text=True, audio_mask=audio_mask)
                 text_embed = self.text_uncond
             else:
                 if self.text_cond is None:
-                    self.text_cond, _ = self.text_embed_p(text, seq_len, drop_text=False, audio_mask=audio_mask)
+                    self.text_cond, _ = self.text_embed(text, seq_len, drop_text=False, audio_mask=audio_mask)
                 text_embed = self.text_cond
         else:
-            text_embed, text_mask = self.text_embed_p(text, seq_len, drop_text=drop_text, audio_mask=audio_mask)
+            text_embed, text_mask = self.text_embed(text, seq_len, drop_text=drop_text, audio_mask=audio_mask)
 
-        if midi is None:
-            midi = torch.zeros((x.size(0), x.size(1)), device=x.device, dtype=torch.long)
+        if melody is None:
+            melody = torch.zeros((x.size(0), x.size(1)), device=x.device, dtype=torch.long)
 
-        x = self.input_embed_with_midi(x, cond, text_embed, midi, drop_audio_cond=drop_audio_cond, drop_midi=drop_midi)
+        x = self.input_embed_with_melody(
+            x, cond, text_embed, melody, drop_audio_cond=drop_audio_cond, drop_melody=drop_melody
+        )
 
         return x, None
 
@@ -301,7 +303,7 @@ class DiT(nn.Module):
         cond: float["b n d"],  # masked cond audio  # noqa: F722
         text: int["b nt"],  # text  # noqa: F722
         time: float["b"] | float[""],  # time step  # noqa: F821 F722
-        midi: float["b n"] | None = None,  # f0  # noqa: F722
+        melody: float["b n"] | None = None,  # f0  # noqa: F722
         mask: bool["b n"] | None = None,  # noqa: F722
         cache: bool = False,
     ):
@@ -315,15 +317,15 @@ class DiT(nn.Module):
             x,
             cond,
             text,
-            midi,
+            melody,
             drop_audio_cond=False,
             drop_text=False,
-            drop_midi=False,
+            drop_melody=False,
             cache=cache,
             audio_mask=mask,
         )
         x_uncond, _ = self.get_input_embed(
-            x, cond, text, midi, drop_audio_cond=True, drop_text=True, drop_midi=True, cache=cache, audio_mask=mask
+            x, cond, text, melody, drop_audio_cond=True, drop_text=True, drop_melody=True, cache=cache, audio_mask=mask
         )
         x = torch.cat((x_cond, x_uncond), dim=0)
         t = torch.cat((t, t), dim=0)
