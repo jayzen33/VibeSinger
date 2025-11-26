@@ -13,9 +13,9 @@
 
 ## Overview ✨
 
-<p align="center">
+<!-- <p align="center">
   <img src="figs/head.jpeg" width="720" alt="pipeline">
-</p>
+</p> -->
 
 **YingMusic-Singer** is a unified framework for **Zero-shot Singing Voice Synthesis (SVS) and Editing**, driven by **Annotation-free Melody Guidance**. Addressing the scalability challenges of real-world applications, our system eliminates the reliance on costly phoneme-level alignment and manual melody annotations. It enables **arbitrary lyrics to be synthesized or edited with any reference melody** in a zero-shot manner.
 
@@ -27,8 +27,8 @@ Our approach leverages a **Diffusion Transformer (DiT)** based generative model,
 - **Annotation-free Melody Guidance**: Derives melody directly from reference audio, removing the need for manual MIDI or phoneme-level annotations.
 - **Zero-Shot Capabilities**: Synthesize or edit high-quality singing voices from arbitrary lyrics and reference melodies without training on the target voice.
 - **Flow-GRPO Reinforcement Learning**: Optimizes pronunciation, melodic accuracy, and musicality via multi-objective rewards.
-<!-- - **Structured Guidance Mechanism**: Enhances melodic stability and coherence using similarity distribution constraints. -->
-<!-- - **Robust Generalization**: Outperforms existing methods in zero-shot synthesis and lyric replacement scenarios. -->
+  <!-- - **Structured Guidance Mechanism**: Enhances melodic stability and coherence using similarity distribution constraints. -->
+  <!-- - **Robust Generalization**: Outperforms existing methods in zero-shot synthesis and lyric replacement scenarios. -->
 
 ---
 
