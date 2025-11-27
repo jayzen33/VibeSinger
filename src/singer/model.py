@@ -192,7 +192,7 @@ class YingSinger(nn.Module):
         melody = torch.where(cond_mask, torch.zeros_like(melody), melody)
 
         def fn(t, x):
-            pred_cfg = self.transformer(
+            pred_cfg = self.singer.transformer(
                 x=x,
                 cond=step_cond,
                 text=text,
