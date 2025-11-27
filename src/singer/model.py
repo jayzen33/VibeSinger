@@ -158,7 +158,7 @@ class YingSinger(nn.Module):
 
         cond = cond.to(next(self.parameters()).dtype)
 
-        melody, _ = self.melody_extractor(melody_in)
+        melody, _ = self.singer.melody_extractor(melody_in)
 
         batch, cond_seq_len, device = *cond.shape[:2], cond.device
         if not exists(lens):
@@ -221,7 +221,7 @@ class YingSinger(nn.Module):
             t = t + sway_sampling_coef * (torch.cos(torch.pi / 2 * t) - 1 + t)
 
         trajectory = odeint(fn, y0, t, method="euler")
-        self.transformer.clear_cache()
+        self.singer.transformer.clear_cache()
 
         sampled = trajectory[-1]
         out = sampled
