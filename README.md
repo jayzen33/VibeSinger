@@ -4,7 +4,7 @@
 
 <div align="center">
 
-[![Paper](https://img.shields.io/badge/Paper-YingMusic--Singer-blue)](tech_report/YingMusic-Singer_tech_report.pdf)
+[![Paper](https://img.shields.io/badge/Paper-YingMusic--Singer-blue)](resources/YingMusic-Singer_tech_report.pdf)
 [![Hugging Face](https://img.shields.io/badge/🤗%20HuggingFace-YingMusic--Singer-yellow)](https://huggingface.co/GiantAILab/YingMusic-Singer)
 
 </div>
