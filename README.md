@@ -83,7 +83,7 @@ python src/singer/model.py --ckpt_path "ckpt_path" \
     --timbre_audio_content "在爱的回归线 又期待相见" \
     --melody_audio_path "resources/audios/mxsf.wav" \
     --lyrics "你说 你爱了不该爱的人 你的心中满是伤痕" \
-    --out_path "test_yingsinger_zs.wav" \
+    --out_path "outputs/test_yingsinger_zs.wav" \
     --cfg_strength 3.0 \
     --nfe_steps 100
 ```
