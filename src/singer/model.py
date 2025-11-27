@@ -33,7 +33,7 @@ class YingSinger(nn.Module):
         singer_path: Union[str, PathLike, None] = None,
         vocoder_path: Union[str, PathLike, None] = None,
         device: Union[str, torch.device] = "cpu",
-        cache_dir: Union[str, PathLike, None] = None,
+        cache_dir: Union[str, PathLike, None] = "./.cache/huggingface",
     ):
         super().__init__()
         self.cache_dir = cache_dir
@@ -76,7 +76,8 @@ class YingSinger(nn.Module):
         self.singer.melody_extractor = melody_encoder_cls(in_dim=self.num_channels)
 
     def load_singer(self, ckpt_path: Union[str, PathLike, None] = None, device: Union[str, torch.device] = "cpu"):
-        if ckpt_path is None:
+        if ckpt_path is None or not Path(ckpt_path).exists():
+            print("Download YingSinger model from huggingface GiantAILab/YingMusic-Singer")
             ckpt_path = hf_hub_download(
                 repo_id="GiantAILab/YingMusic-Singer",
                 filename="yingsinger.dev.pt",
@@ -357,7 +358,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    singer = YingSinger(device="cuda" if torch.cuda.is_available() else "cpu", singer_path=args.ckpt_path)
+    singer = YingSinger(singer_path=args.ckpt_path, device="cuda" if torch.cuda.is_available() else "cpu")
 
     gen_wav = singer.inference(
         timbre_audio_path=args.timbre_audio_path,
