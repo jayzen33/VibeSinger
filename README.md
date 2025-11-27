@@ -40,8 +40,8 @@ Our approach leverages a **Diffusion Transformer (DiT)** based generative model,
 
 ## News & Updates 🗞️
 
-- **2025-11-26**: Released the beta version's inference code and model checkpoints.
 - **2025-11-27**: Released the technical report.
+- **2025-11-26**: Released the beta version's inference code and model checkpoints.
 
 ---
 
@@ -58,9 +58,14 @@ Our approach leverages a **Diffusion Transformer (DiT)** based generative model,
 git clone https://github.com/GiantAILab/YingMusic-Singer.git
 cd YingMusic-Singer
 
-conda create -n singer python=3.10
+conda create -n singer python=3.12
 conda activate singer
-pip install -r requirements.txt
+
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+pip3 install -r requirements.txt
+
+unset PYTHONPATH
+export PYTHONPATH=$(pwd)/src:$PYTHONPATH
 ```
 
 ---
