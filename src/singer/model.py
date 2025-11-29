@@ -77,7 +77,7 @@ class YingSinger(nn.Module):
 
     def load_singer(self, ckpt_path: Union[str, PathLike, None] = None, device: Union[str, torch.device] = "cpu"):
         if ckpt_path is None or not Path(ckpt_path).exists():
-            print("Download YingSinger model from huggingface GiantAILab/YingMusic-Singer")
+            print("Using YingSinger model from huggingface GiantAILab/YingMusic-Singer")
             ckpt_path = hf_hub_download(
                 repo_id="GiantAILab/YingMusic-Singer",
                 filename="yingsinger.dev.pt",
@@ -98,7 +98,7 @@ class YingSinger(nn.Module):
         device: Union[str, torch.device] = "cpu",
     ):
         if vocoder_path is None:
-            print("Download Vocos from huggingface charactr/vocos-mel-24khz")
+            print("Using Vocos from huggingface charactr/vocos-mel-24khz")
             repo_id = "charactr/vocos-mel-24khz"
             config_path = hf_hub_download(repo_id=repo_id, cache_dir=self.cache_dir, filename="config.yaml")
             model_path = hf_hub_download(repo_id=repo_id, cache_dir=self.cache_dir, filename="pytorch_model.bin")
