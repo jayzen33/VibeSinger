@@ -51,13 +51,44 @@ def run_inference(timbre_audio, timbre_content, melody_audio, lyrics, cfg_streng
         raise gr.Error(f"生成失败: {str(e)}")
 
 
+demo_inputs = [
+    {
+        "timbre_audio": "resources/audios/zcd.wav",
+        "timbre_content": "冰刀划的圈 圈起了谁改变",
+        "melody_audio": "resources/audios/zcd.wav",
+        "lyrics": "冰刃划的圆 围住了谁变迁",
+        "cfg_strength": 3.0,
+        "nfe_steps": 32,
+        "seed": 2025,
+    },
+    {
+        "timbre_audio": "resources/audios/zcd.wav",
+        "timbre_content": "冰刀划的圈 圈起了谁改变",
+        "melody_audio": "resources/audios/p_1.wav",
+        "lyrics": "你说 你演错了剧本 陪尽了天真心真",
+        "cfg_strength": 3.0,
+        "nfe_steps": 32,
+        "seed": 2025,
+    },
+    {
+        "timbre_audio": "resources/audios/p_1.wav",
+        "timbre_content": "你说 你演错了剧本 陪尽了天真心真",
+        "melody_audio": "resources/audios/zcd.wav",
+        "lyrics": "寒刀画的环 包住了谁转变",
+        "cfg_strength": 3.0,
+        "nfe_steps": 32,
+        "seed": 2025,
+    },
+]
+
+
 with gr.Blocks(title="YingSinger WebUI") as app:
     gr.Markdown(
         """
         <div style="text-align: center;">
             <h1>YingMusic-Singer 零样本 歌声合成 & 编辑</h1>
             <p>
-                当前模型为 <b style="color: #ff4b4b;">beta</b> 版本，仅支持 <b>中文与较低的音质</b><br>
+                当前模型为 <b style="color: #ff4b4b;">beta</b> 版本，仅支持 <b>中文 pop music 与较低的音质</b><br>
                 v1 版本 <b>(多语言 & 更高音质 & 更好的泛化性)</b> 将在 2025 年底之前推出，敬请期待...
             </p>
         </div>
@@ -67,12 +98,12 @@ with gr.Blocks(title="YingSinger WebUI") as app:
     with gr.Row():
         with gr.Column():
             gr.Markdown("### 1. 输入设置")
-            timbre_audio = gr.Audio(label="音色参考音频", type="filepath")
+            timbre_audio = gr.Audio(label="音色参考音频（干声）", type="filepath")
             timbre_content = gr.Textbox(
                 label="参考音频文本内容", placeholder="请输入参考音频中说/唱的文字内容", lines=2
             )
 
-            melody_audio = gr.Audio(label="旋律参考音频", type="filepath")
+            melody_audio = gr.Audio(label="旋律参考音频（干声）", type="filepath")
             lyrics = gr.Textbox(label="目标歌词", placeholder="请输入想要合成的歌词", lines=2)
 
             with gr.Accordion("高级参数设置", open=False):
@@ -87,6 +118,31 @@ with gr.Blocks(title="YingSinger WebUI") as app:
         with gr.Column():
             gr.Markdown("### 2. 生成结果")
             output_audio = gr.Audio(label="合成音频", type="numpy")
+
+            gr.Examples(
+                examples=[
+                    [
+                        x["timbre_audio"],
+                        x["timbre_content"],
+                        x["melody_audio"],
+                        x["lyrics"],
+                        x["cfg_strength"],
+                        x["nfe_steps"],
+                        x["seed"],
+                    ]
+                    for x in demo_inputs
+                ],
+                inputs=[
+                    timbre_audio,
+                    timbre_content,
+                    melody_audio,
+                    lyrics,
+                    cfg_strength,
+                    nfe_steps,
+                    seed,
+                ],
+                label="示例输入",
+            )
 
     submit_btn.click(
         fn=run_inference,
