@@ -97,7 +97,7 @@ with gr.Blocks(title="YingSinger WebUI") as app:
 
     with gr.Row():
         with gr.Column():
-            gr.Markdown("### 1. 输入设置")
+            gr.Markdown("### 1. 输入设置 （输入音频请使用干声、否则会影响使用效果）")
             timbre_audio = gr.Audio(label="音色参考音频（干声）", type="filepath")
             timbre_content = gr.Textbox(
                 label="参考音频文本内容", placeholder="请输入参考音频中说/唱的文字内容", lines=2
