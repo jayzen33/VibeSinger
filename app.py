@@ -98,12 +98,12 @@ with gr.Blocks(title="YingSinger WebUI") as app:
     with gr.Row():
         with gr.Column():
             gr.Markdown("### 1. 输入设置 （输入音频请使用干声、否则会影响使用效果）")
-            timbre_audio = gr.Audio(label="音色参考音频（干声）", type="filepath")
+            timbre_audio = gr.Audio(label="音色参考音频（干声） -- 音色参考音频不应超过 10s", type="filepath")
             timbre_content = gr.Textbox(
-                label="参考音频文本内容", placeholder="请输入参考音频中说/唱的文字内容", lines=2
+                label="参考音频文本内容", placeholder="请输入参考音频中说/唱的文字内容，", lines=2
             )
 
-            melody_audio = gr.Audio(label="旋律参考音频（干声）", type="filepath")
+            melody_audio = gr.Audio(label="旋律参考音频（干声） -- 旋律参考音频不应超过 20s", type="filepath")
             lyrics = gr.Textbox(label="目标歌词", placeholder="请输入想要合成的歌词", lines=2)
 
             with gr.Accordion("高级参数设置", open=False):
