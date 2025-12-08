@@ -113,6 +113,24 @@ We would like to express our gratitude to the following projects for their contr
 - **[Vocos](https://huggingface.co/charactr/vocos-mel-24khz)**: For the high-quality vocoder.
 - **[DiffRhythm](https://github.com/ASLP-lab/DiffRhythm)**: For providing valuable ideas and inspiration.
 
+## Citation 🧾
+
+
+If you use YingMusic‑Singer for research, please cite:
+
+```
+
+@article{zheng2025yingmusicsinger,
+  title={YingMusic-Singer: Zero-shot Singing Voice Synthesis and Editing with Annotation-free Melody Guidance},
+  author={Zheng, Junjie and Hao, Chunbo and Ma, Guobin and Zhang, Xiaoyu and Chen, Gongyu and Ding, Chaofan and Chen, Zihao and Xie, Lei},
+  journal={arXiv preprint arXiv:2512.04779},
+  year={2025}
+}
+
+```
+
+---
+
 ## License 📝
 
 This project is released under the **MIT License**.
