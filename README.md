@@ -116,10 +116,9 @@ We would like to express our gratitude to the following projects for their contr
 ## Citation 🧾
 
 
-If you use YingMusic‑Singer for research, please cite:
+If you use YingMusic-Singer for research, please cite:
 
 ```
-
 @article{zheng2025yingmusicsinger,
   title={YingMusic-Singer: Zero-shot Singing Voice Synthesis and Editing with Annotation-free Melody Guidance},
   author={Zheng, Junjie and Hao, Chunbo and Ma, Guobin and Zhang, Xiaoyu and Chen, Gongyu and Ding, Chaofan and Chen, Zihao and Xie, Lei},
@@ -128,7 +127,6 @@ If you use YingMusic‑Singer for research, please cite:
 }
 
 ```
-
 ---
 
 ## License 📝
