@@ -125,7 +125,6 @@ If you use YingMusic-Singer for research, please cite:
   journal={arXiv preprint arXiv:2512.04779},
   year={2025}
 }
-
 ```
 ---
 
