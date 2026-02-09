@@ -3,7 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_sequence
 
-from singer.melody.Gconform import Gmidi_conform
+from singer.melody.Gconform import Gmidi_conform, conform_blocke
+
+# midi decoding utils
 
 
 def decode_gaussian_blurred_probs(probs, vmin, vmax, deviation, threshold):
@@ -116,34 +118,49 @@ class midi_loss(nn.Module):
 
 
 class MIDIExtractor(nn.Module):
-    def __init__(self, in_dim=None, out_dim=None):
+    def __init__(
+        self,
+        indim=80,
+        outdim=128,
+        attention_drop=0.1,
+        attention_heads=8,
+        attention_heads_dim=64,
+        conv_drop=0.1,
+        dim=512,
+        ffn_latent_drop=0.1,
+        ffn_out_drop=0.1,
+        kernel_size=31,
+        lay=8,
+        use_lay_skip=True,
+        **kwargs,
+    ):
         super().__init__()
 
-        cfg = {
-            "attention_drop": 0.1,
-            "attention_heads": 8,
-            "attention_heads_dim": 64,
-            "conv_drop": 0.1,
-            "dim": 512,
-            "ffn_latent_drop": 0.1,
-            "ffn_out_drop": 0.1,
-            "kernel_size": 31,
-            "lay": 8,
-            "use_lay_skip": True,
-            "indim": 80,
-            "outdim": 128,
+        _cfg = {
+            "indim": indim,
+            "outdim": outdim,
+            "attention_drop": attention_drop,
+            "attention_heads": attention_heads,
+            "attention_heads_dim": attention_heads_dim,
+            "conv_drop": conv_drop,
+            "dim": dim,
+            "ffn_latent_drop": ffn_latent_drop,
+            "ffn_out_drop": ffn_out_drop,
+            "kernel_size": kernel_size,
+            "lay": lay,
+            "use_lay_skip": use_lay_skip,
         }
-        if in_dim is not None:
-            cfg["indim"] = in_dim
-        if out_dim is not None:
-            cfg["outdim"] = out_dim
 
-        self.midi_conform = Gmidi_conform(**cfg)
+        self.midi_conform = Gmidi_conform(**_cfg)
 
         self.midi_min = 0
         self.midi_max = 127
         self.midi_deviation = 1.0
         self.rest_threshold = 0.1
+
+    @property
+    def device(self):
+        return next(self.parameters()).device
 
     def _load_form_ckpt(self, ckpt_path, device="cpu"):
         from collections import OrderedDict
@@ -168,16 +185,10 @@ class MIDIExtractor(nn.Module):
 
         return midi, bound
 
-    def postprocess(self, midi, bounds, with_expand=False):
-        probs = torch.sigmoid(midi)
+    def postprocess(self, midi_probs):
+        probs = torch.sigmoid(midi_probs)
 
-        bound_probs = torch.sigmoid(bounds)
-        bound_probs = torch.squeeze(bound_probs, -1)
-
-        masks = torch.ones_like(bound_probs).bool()
-        probs = probs * masks[..., None]
-        bound_probs = bound_probs * masks
-        unit2note_pred = decode_bounds_to_alignment(bound_probs) * masks
+        # Avoid in-place ops on tensors needed for autograd (outputs of SigmoidBackward)
         midi_pred, rest_pred = decode_gaussian_blurred_probs(
             probs,
             vmin=self.midi_min,
@@ -185,11 +196,109 @@ class MIDIExtractor(nn.Module):
             deviation=self.midi_deviation,
             threshold=self.rest_threshold,
         )
-        note_midi_pred, note_dur_pred, note_mask_pred = decode_note_sequence(
-            unit2note_pred, midi_pred, ~rest_pred & masks
-        )
-        if not with_expand:
-            return note_midi_pred, note_dur_pred
 
-        note_midi_expand, _ = expand_batch_padded(note_midi_pred, note_dur_pred)
-        return note_midi_expand, None
+        return midi_pred
+
+    def get_melody(self, x, mask=None):
+        midi, bounds = self.forward(x, None)
+        melody = self.postprocess(midi)
+        return melody
+
+    def get_notemidi_seq(self, x, masks=None):
+        probs, _ = self.forward(x, None)
+        probs = torch.sigmoid(probs)
+
+        if masks is None:
+            masks = torch.ones(probs.shape[0], probs.shape[1], device=probs.device).bool()
+        probs *= masks[..., None]
+        midi_pred, rest_pred = decode_gaussian_blurred_probs(
+            probs,
+            vmin=self.midi_min,
+            vmax=self.midi_max,
+            deviation=self.midi_deviation,
+            threshold=self.rest_threshold,
+        )
+        return midi_pred
+
+
+class MelodyEncoder(nn.Module):
+    def __init__(
+        self,
+        indim=80,
+        outdim=128,
+        dim=512,
+        lay=6,
+        kernel_size=31,
+        conv_drop=0.1,
+        ffn_latent_drop=0.1,
+        ffn_out_drop=0.1,
+        attention_drop=0.1,
+        attention_heads=8,
+        attention_heads_dim=64,
+        **kwargs,
+    ):
+        super().__init__()
+        self.input_proj = nn.Linear(indim, dim)
+        self.layers = nn.ModuleList(
+            [
+                conform_blocke(
+                    dim=dim,
+                    kernel_size=kernel_size,
+                    conv_drop=conv_drop,
+                    ffn_latent_drop=ffn_latent_drop,
+                    ffn_out_drop=ffn_out_drop,
+                    attention_drop=attention_drop,
+                    attention_heads=attention_heads,
+                    attention_heads_dim=attention_heads_dim,
+                )
+                for _ in range(lay)
+            ]
+        )
+        self.output_proj = nn.Linear(dim, outdim)
+
+        self.midi_min = 0
+        self.midi_max = 127
+        self.midi_deviation = 1.0
+        self.rest_threshold = 0.1
+
+    def forward(self, x, mask=None):
+        x = self.input_proj(x)
+        if mask is not None:
+            x = x.masked_fill(~mask.unsqueeze(-1), 0)
+
+        for layer in self.layers:
+            x = layer(x, mask)
+            if mask is not None:
+                x = x.masked_fill(~mask.unsqueeze(-1), 0)
+
+        return self.output_proj(x)
+
+    def postprocess(self, midi_probs):
+        probs = torch.sigmoid(midi_probs)
+
+        # Avoid in-place ops on tensors needed for autograd (outputs of SigmoidBackward)
+        midi_pred, rest_pred = decode_gaussian_blurred_probs(
+            probs,
+            vmin=self.midi_min,
+            vmax=self.midi_max,
+            deviation=self.midi_deviation,
+            threshold=self.rest_threshold,
+        )
+
+        return midi_pred
+
+    def get_notemidi_seq(self, x, masks=None):
+        probs = self.forward(x, None)
+        probs = torch.sigmoid(probs)
+
+        if masks is None:
+            masks = torch.ones(probs.shape[0], probs.shape[1], device=probs.device).bool()
+        probs *= masks[..., None]
+        midi_pred, rest_pred = decode_gaussian_blurred_probs(
+            probs,
+            vmin=self.midi_min,
+            vmax=self.midi_max,
+            deviation=self.midi_deviation,
+            threshold=self.rest_threshold,
+        )
+        return midi_pred

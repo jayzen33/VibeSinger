@@ -1,0 +1,34 @@
+feat_dim: 64
+vocab_size: 366
+
+decoder:
+  _target_: singer.decoder.dit.DiT
+  dim: 1024
+  depth: 24
+  heads: 16
+  ff_mult: 4
+  freq_dim: 256
+  feat_dim: ${feat_dim}
+  text_num_embeds: ${vocab_size}
+  text_dim: 512
+  melody_num_embeds: 128
+  melody_dim: 128
+  tag_dim: 64
+  text_mask_padding: False
+  qk_norm: null
+  conv_layers: 4
+
+melody_encoder:
+  _target_: singer.melody.midi_extractor.MIDIExtractor
+  indim: 80
+  outdim: 128
+  dim: 512
+  lay: 8
+  kernel_size: 31
+  conv_drop: 0.1
+  ffn_latent_drop: 0.1
+  attention_drop: 0.1
+  attention_heads: 8
+  attention_heads_dim: 64
+  use_lay_skip: True
+  ffn_out_drop: 0.1

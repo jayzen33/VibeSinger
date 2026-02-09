@@ -12,7 +12,8 @@ from typing import List, Optional, Tuple
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
-from univoice.decoder.modules import (
+
+from singer.decoder.modules import (
     ConvNeXtV2Block,
     ConvPositionEmbedding,
     Head,
@@ -140,7 +141,6 @@ class InputEmbedding(nn.Module):
                 melody = self.null_melody.expand(x.size(0), x.size(1), 128)
 
         tag_embedding = tag_embedding.unsqueeze(1).expand(-1, _seq_len, -1)
-
         x = self.proj(torch.cat((x, cond, text_embed, melody, tag_embedding), dim=-1))
         x = self.conv_pos_embed(x) + x
         return x

@@ -106,26 +106,40 @@ def list_str_to_idx(
 # Get tokenizer
 
 
-def get_tokenizer(dataset_name, tokenizer: str = "pinyin"):
-    """
-    tokenizer   - "pinyin" do g2p for only chinese characters, need .txt vocab_file
-                - "char" for char-wise tokenizer, need .txt vocab_file
-                - "byte" for utf-8 tokenizer
-                - "custom" if you're directly passing in a path to the vocab.txt you want to use
-    vocab_size  - if use "pinyin", all available pinyin types, common alphabets (also those with accent) and symbols
-                - if use "char", derived from unfiltered character & symbol counts of custom dataset
-                - if use "byte", set to 256 (unicode byte range)
+def get_tokenizer(dataset_name: str, tokenizer: str = "pinyin") -> tuple[dict[str, int] | None, int]:
+    """Load a tokenizer vocabulary from file.
+
+    Args:
+        dataset_name: Path to vocab file when tokenizer="custom", otherwise ignored.
+        tokenizer: Tokenizer type. One of:
+            - "pinyin": G2P for Chinese characters, requires vocab.txt
+            - "char": Character-wise tokenizer, requires vocab.txt
+            - "byte": UTF-8 byte tokenizer (vocab_size=256)
+            - "custom": Load vocab from path specified in dataset_name
+
+    Returns:
+        Tuple of (vocab_char_map, vocab_size) where vocab_char_map maps
+        characters to indices, or None for byte tokenizer.
+
+    Raises:
+        FileNotFoundError: If vocab file doesn't exist.
+        ValueError: If vocab file is invalid (space must be at index 0).
     """
     if tokenizer in ["pinyin", "char"]:
-        # tokenizer_path = os.path.join(files("f5_tts").joinpath("../../data"), f"{dataset_name}_{tokenizer}/vocab.txt")
-        # tokenizer_path = os.path.join(files("f5_tts").joinpath("../../data"), f"{dataset_name}/vocab.txt")
-        tokenizer_path = "/ailab-train/speech/zhengjunjie/opt/models/F5-TTS/F5TTS_v1_Base/vocab.txt"
-        with open(tokenizer_path, "r", encoding="utf-8") as f:
-            vocab_char_map = {}
-            for i, char in enumerate(f):
-                vocab_char_map[char[:-1]] = i
-        vocab_size = len(vocab_char_map)
-        assert vocab_char_map[" "] == 0, "make sure space is of idx 0 in vocab.txt, cuz 0 is used for unknown char"
+        # For pinyin/char tokenizers, vocab file should be provided via dataset_name
+        # or use the custom tokenizer type with explicit path
+        raise ValueError(
+            f"Tokenizer '{tokenizer}' requires a vocab file. "
+            "Please use tokenizer='custom' with dataset_name pointing to your vocab.txt file."
+        )
+        # Legacy code for reference:
+        # tokenizer_path = os.path.join(data_dir, f"{dataset_name}_{tokenizer}/vocab.txt")
+        # with open(tokenizer_path, "r", encoding="utf-8") as f:
+        #     vocab_char_map = {}
+        #     for i, char in enumerate(f):
+        #         vocab_char_map[char[:-1]] = i
+        # vocab_size = len(vocab_char_map)
+        # assert vocab_char_map[" "] == 0, "Space must be at index 0 in vocab.txt"
 
     elif tokenizer == "byte":
         vocab_char_map = None

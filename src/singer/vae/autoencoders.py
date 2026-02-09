@@ -5,8 +5,9 @@ from typing import Any, Dict, Literal
 
 import torch
 from dac.nn.layers import WNConv1d, WNConvTranspose1d
-from third_party.vae.bottleneck import create_bottleneck_from_config
 from torch import nn
+
+from singer.vae.bottleneck import create_bottleneck_from_config
 
 
 class Bottleneck(nn.Module):
