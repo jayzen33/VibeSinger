@@ -6,7 +6,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 import gradio as gr
 import torch
 
-from singer.model import SAMPLE_RATE_24K, YingSinger
+from singer.model import SAMPLE_RATE_48K, YingSinger
 
 # =============================================================================
 # Model Initialization
@@ -32,9 +32,11 @@ def run_inference(
     timbre_audio: str,
     timbre_content: str,
     melody_audio: str,
+    midi_file: str,
     lyrics: str,
     cfg_strength: float,
     nfe_steps: int,
+    sde_strength: float,
     seed: int,
 ) -> tuple[int, torch.Tensor]:
     """Run singing voice synthesis inference.
@@ -43,9 +45,11 @@ def run_inference(
         timbre_audio: Path to timbre reference audio.
         timbre_content: Text content of timbre reference.
         melody_audio: Path to melody reference audio.
+        midi_file: Path to MIDI file (optional).
         lyrics: Target lyrics to synthesize.
         cfg_strength: Classifier-free guidance strength.
         nfe_steps: Number of diffusion steps.
+        sde_strength: Strength of SDE noise injection.
         seed: Random seed.
 
     Returns:
@@ -61,8 +65,8 @@ def run_inference(
         raise gr.Error("Please upload timbre reference audio. / 请上传音色参考音频")
     if not timbre_content:
         raise gr.Error("Please enter reference audio text. / 请输入参考音频的文本内容")
-    if not melody_audio:
-        raise gr.Error("Please upload melody reference audio. / 请上传旋律参考音频")
+    if not melody_audio and not midi_file:
+        raise gr.Error("Please upload melody reference audio or MIDI file. / 请上传旋律参考音频或 MIDI 文件")
     if not lyrics:
         raise gr.Error("Please enter lyrics. / 请输入歌词")
 
@@ -72,12 +76,14 @@ def run_inference(
             timbre_audio_path=timbre_audio,
             timbre_audio_content=timbre_content,
             melody_audio_path=melody_audio,
+            midi_file=midi_file,
             lyrics=lyrics,
             cfg_strength=float(cfg_strength),
             nfe_steps=int(nfe_steps),
+            sde_strength=float(sde_strength),
             seed=int(seed) if seed is not None else 2025,
         )
-        return (SAMPLE_RATE_24K, gen_wav.numpy())
+        return (SAMPLE_RATE_48K, gen_wav.numpy().T)
     except Exception as e:
         raise gr.Error(f"Generation failed: {str(e)} / 生成失败: {str(e)}")
 
@@ -86,29 +92,36 @@ demo_inputs = [
     {
         "timbre_audio": "resources/audios/zcd.wav",
         "timbre_content": "冰刀划的圈 圈起了谁改变",
-        "melody_audio": "resources/audios/zcd.wav",
-        "lyrics": "冰刃划的圆 围住了谁变迁",
-        "cfg_strength": 3.0,
+        "melody_audio": "resources/audios/female__Rnb_Funk__下等马_clip_001.wav",
+        "midi_file": None,
+        "lyrics": "头抬起来，你表情别太奇怪，无大碍。没伤到脑袋，如果我下手太重，私密马赛。习武十载，没下山没谈恋爱，吃光后山七八亩菜，练就这套拳脚，莫以貌取人哉。暮色压台，擂鼓未衰，下一个谁还要来？速来领拜，别耽误我热蒸屉揭盖。",
+        "cfg_strength": 4.0,
         "nfe_steps": 32,
         "seed": 2025,
+        "sde_strength": 0.3,
     },
     {
         "timbre_audio": "resources/audios/zcd.wav",
         "timbre_content": "冰刀划的圈 圈起了谁改变",
-        "melody_audio": "resources/audios/p_1.wav",
-        "lyrics": "你说 你演错了剧本 陪尽了天真心真",
-        "cfg_strength": 3.0,
+        "melody_audio": "resources/audios/female__Rnb_Funk__下等马_clip_001.wav",
+        "midi_file": None,
+        "lyrics": "心敞开来，你泪水别太奇怪，会好的。没伤到未来，如果我爱得太深，请原谅我。疗伤十载，没出门没再恋爱，吃光回忆七八亩菜，练就这心坚强，莫以泪洗面哉。曙光压台，希望未衰，新生活谁还要来？速来领爱，别耽误我心扉敞开怀。",
+        "cfg_strength": 4.0,
         "nfe_steps": 32,
         "seed": 2025,
+        "sde_strength": 0.3,
     },
     {
         "timbre_audio": "resources/audios/p_1.wav",
         "timbre_content": "你说 你演错了剧本 陪尽了天真心真",
-        "melody_audio": "resources/audios/zcd.wav",
-        "lyrics": "寒刀画的环 包住了谁转变",
-        "cfg_strength": 3.0,
+        # "melody_audio": "resources/audios/female__Rnb_Funk__下等马_clip_001.wav",
+        "melody_audio": None,
+        "midi_file": "resources/audios/female__Rnb_Funk__下等马_clip_001.mid",
+        "lyrics": "心敞开来，你泪水别太奇怪，会好的。没伤到未来，如果我爱得太深，请原谅我。疗伤十载，没出门没再恋爱，吃光回忆七八亩菜，练就这心坚强，莫以泪洗面哉。曙光压台，希望未衰，新生活谁还要来？速来领爱，别耽误我心扉敞开怀。",
+        "cfg_strength": 4.0,
         "nfe_steps": 32,
         "seed": 2025,
+        "sde_strength": 0.3,
     },
 ]
 
@@ -126,58 +139,77 @@ with gr.Blocks(title="YingSinger WebUI") as app:
         """
     )
 
+    gr.Markdown("### 1. 输入设置 （输入音频请使用干声、否则会影响使用效果）")
     with gr.Row():
         with gr.Column():
-            gr.Markdown("### 1. 输入设置 （输入音频请使用干声、否则会影响使用效果）")
-            timbre_audio = gr.Audio(label="音色参考音频（干声） -- 音色参考音频不应超过 10s", type="filepath")
+            timbre_audio = gr.Audio(label="音色参考音频（干声）", type="filepath")
             timbre_content = gr.Textbox(
                 label="参考音频文本内容", placeholder="请输入参考音频中说/唱的文字内容，", lines=2
             )
 
-            melody_audio = gr.Audio(label="旋律参考音频（干声） -- 旋律参考音频不应超过 20s", type="filepath")
+        with gr.Column():
+            with gr.Tabs():
+                with gr.Tab("从音频提取旋律"):
+                    melody_audio = gr.Audio(label="旋律参考音频（干声）", type="filepath")
+                with gr.Tab("使用 MIDI 文件"):
+                    midi_file = gr.File(label="MIDI 文件", file_types=[".mid", ".midi"])
+
             lyrics = gr.Textbox(label="目标歌词", placeholder="请输入想要合成的歌词", lines=2)
 
-            with gr.Accordion("高级参数设置", open=False):
-                cfg_strength = gr.Slider(
-                    minimum=1.0, maximum=10.0, value=3.0, step=0.1, label="CFG Strength (引导强度)"
-                )
-                nfe_steps = gr.Slider(minimum=10, maximum=200, value=32, step=1, label="NFE Steps (推理步数)")
-                seed = gr.Number(value=2025, label="随机种子 (Seed)", precision=0)
+    with gr.Accordion("高级参数设置", open=True):
+        with gr.Row():
+            cfg_strength = gr.Slider(minimum=1.0, maximum=10.0, value=4.0, step=0.1, label="CFG Strength (引导强度)")
+            nfe_steps = gr.Slider(minimum=10, maximum=200, value=32, step=1, label="NFE Steps (推理步数)")
+            sde_strength = gr.Slider(minimum=0.0, maximum=1.0, value=0.3, step=0.01, label="SDE Strength")
+            seed = gr.Number(value=2025, label="随机种子 (Seed)", precision=0)
 
-            submit_btn = gr.Button("开始生成", variant="primary")
+    submit_btn = gr.Button("开始生成", variant="primary")
 
-        with gr.Column():
-            gr.Markdown("### 2. 生成结果")
-            output_audio = gr.Audio(label="合成音频", type="numpy")
+    gr.Markdown("### 2. 生成结果")
+    output_audio = gr.Audio(label="合成音频", type="numpy")
 
-            gr.Examples(
-                examples=[
-                    [
-                        x["timbre_audio"],
-                        x["timbre_content"],
-                        x["melody_audio"],
-                        x["lyrics"],
-                        x["cfg_strength"],
-                        x["nfe_steps"],
-                        x["seed"],
-                    ]
-                    for x in demo_inputs
-                ],
-                inputs=[
-                    timbre_audio,
-                    timbre_content,
-                    melody_audio,
-                    lyrics,
-                    cfg_strength,
-                    nfe_steps,
-                    seed,
-                ],
-                label="示例输入",
-            )
+    gr.Examples(
+        examples=[
+            [
+                x["timbre_audio"],
+                x["timbre_content"],
+                x["melody_audio"],
+                x["midi_file"],
+                x["lyrics"],
+                x["cfg_strength"],
+                x["nfe_steps"],
+                x["sde_strength"],
+                x["seed"],
+            ]
+            for x in demo_inputs
+        ],
+        inputs=[
+            timbre_audio,
+            timbre_content,
+            melody_audio,
+            midi_file,
+            lyrics,
+            cfg_strength,
+            nfe_steps,
+            sde_strength,
+            seed,
+        ],
+        label="示例输入",
+    )
 
     submit_btn.click(
         fn=run_inference,
-        inputs=[timbre_audio, timbre_content, melody_audio, lyrics, cfg_strength, nfe_steps, seed],
+        inputs=[
+            timbre_audio,
+            timbre_content,
+            melody_audio,
+            midi_file,
+            lyrics,
+            cfg_strength,
+            nfe_steps,
+            sde_strength,
+            seed,
+        ],
         outputs=output_audio,
     )
 
