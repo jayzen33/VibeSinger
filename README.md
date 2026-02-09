@@ -26,17 +26,18 @@ Our approach leverages a **Diffusion Transformer (DiT)** based generative model,
 
 ### 🔧 Key Features
 
-- **Unified Synthesis & Editing**: Supports both zero-shot singing voice synthesis and precise singing voice editing within a single framework.
-- **Annotation-free Melody Guidance**: Derives melody directly from reference audio, removing the need for manual MIDI or phoneme-level annotations.
-- **Zero-Shot Capabilities**: Synthesize or edit high-quality singing voices from arbitrary lyrics and reference melodies without training on the target voice.
-- **Flow-GRPO Reinforcement Learning**: Optimizes pronunciation, melodic accuracy, and musicality via multi-objective rewards.
+- **Unified Synthesis & Editing**: Seamlessly integrates zero-shot synthesis and editing within a single framework.
+- **Annotation-free Melody Guidance**: Automatically extracts melody from reference audio, eliminating the need for manual MIDI or phoneme alignment.
+- **Zero-Shot Capabilities**: Generates high-quality singing voices from arbitrary lyrics and melodies without fine-tuning on the target voice.
+- **Flexible Melody Input**: Accepts both reference audio and direct MIDI files as melody inputs for enhanced versatility.
+<!-- - **Flow-GRPO Reinforcement Learning**: Optimizes pronunciation, melodic accuracy, and musicality via multi-objective rewards. -->
   <!-- - **Structured Guidance Mechanism**: Enhances melodic stability and coherence using similarity distribution constraints. -->
   <!-- - **Robust Generalization**: Outperforms existing methods in zero-shot synthesis and lyric replacement scenarios. -->
 
 ---
 
 <p align="center">
-  <img src="resources/imgs/svs_main.svg" width="720" alt="pipeline">
+  <img src="resources/imgs/main_v1.svg" width="720" alt="pipeline">
 </p>
 
 ---
