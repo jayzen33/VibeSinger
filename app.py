@@ -77,7 +77,7 @@ def run_inference(
             nfe_steps=int(nfe_steps),
             seed=int(seed) if seed is not None else 2025,
         )
-        return (SAMPLE_RATE_24K, gen_wav)
+        return (SAMPLE_RATE_24K, gen_wav.numpy())
     except Exception as e:
         raise gr.Error(f"Generation failed: {str(e)} / 生成失败: {str(e)}")
 
@@ -114,14 +114,14 @@ demo_inputs = [
 
 
 with gr.Blocks(title="YingSinger WebUI") as app:
+    # <p>
+    #     当前模型为 <b style="color: #ff4b4b;">beta</b> 版本，仅支持 <b>中文 pop music 与较低的音质</b><br>
+    #     v1 版本 <b>(多语言 & 更高音质 & 更好的泛化性)</b> 将在 2025 年底之前推出，敬请期待...
+    # </p>
     gr.Markdown(
         """
         <div style="text-align: center;">
             <h1>YingMusic-Singer 零样本 歌声合成 & 编辑</h1>
-            <p>
-                当前模型为 <b style="color: #ff4b4b;">beta</b> 版本，仅支持 <b>中文 pop music 与较低的音质</b><br>
-                v1 版本 <b>(多语言 & 更高音质 & 更好的泛化性)</b> 将在 2025 年底之前推出，敬请期待...
-            </p>
         </div>
         """
     )
