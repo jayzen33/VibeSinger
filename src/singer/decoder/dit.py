@@ -1,27 +1,26 @@
 """
-ein notation:
-b - batch
-n - sequence
-nt - text sequence
-nw - raw wave length
-d - dimension
+DiT (Diffusion Transformer) implementation for VibeSinger.
+
+This module contains the implementation of the Diffusion Transformer (DiT) used in VibeSinger,
+including text embeddings, input embeddings, and the main DiT backbone.
 """
 
 from __future__ import annotations
 
+from typing import List, Optional, Tuple
+
 import torch
 import torch.nn.functional as F
-from torch import nn
-from x_transformers.x_transformers import RotaryEmbedding
-
-from singer.decoder.modules import (
-    AdaLayerNorm_Final,
+from torch import Tensor, nn
+from univoice.decoder.modules import (
     ConvNeXtV2Block,
     ConvPositionEmbedding,
-    DiTBlock,
-    TimestepEmbedding,
+    Head,
+    WanAttentionBlock,
     get_pos_embed_indices,
     precompute_freqs_cis,
+    rope_params,
+    sinusoidal_embedding_1d,
 )
 
 # Text embedding
@@ -29,17 +28,17 @@ from singer.decoder.modules import (
 
 class TextEmbedding(nn.Module):
     def __init__(
-        self, text_num_embeds, text_dim, mask_padding=False, average_upsampling=False, conv_layers=0, conv_mult=2
+        self,
+        text_num_embeds: int,
+        text_dim: int,
+        mask_padding: bool = False,
+        conv_layers: int = 0,
+        conv_mult: int = 2,
     ):
         super().__init__()
         self.text_embed = nn.Embedding(text_num_embeds + 1, text_dim)  # use 0 as filler token
 
         self.mask_padding = mask_padding  # mask filler and batch padding tokens or not
-        self.average_upsampling = (
-            average_upsampling  # zipvoice-style text late average upsampling (after text encoder)
-        )
-        if average_upsampling:
-            assert mask_padding, "text_embedding_average_upsampling requires text_mask_padding to be True"
 
         if conv_layers > 0:
             self.extra_modeling = True
@@ -53,47 +52,12 @@ class TextEmbedding(nn.Module):
         else:
             self.extra_modeling = False
 
-        print(
-            f"[info] TextEmbedding: mask_padding={mask_padding}, average_upsampling={average_upsampling}, conv_layers={conv_layers}"
-        )
-
-    def average_upsample_text_by_mask(self, text, text_mask, audio_mask):
-        batch, text_len, text_dim = text.shape
-
-        if audio_mask is None:
-            audio_mask = torch.ones_like(text_mask, dtype=torch.bool)
-        valid_mask = audio_mask & text_mask
-        audio_lens = audio_mask.sum(dim=1)  # [batch]
-        valid_lens = valid_mask.sum(dim=1)  # [batch]
-
-        upsampled_text = torch.zeros_like(text)
-
-        for i in range(batch):
-            audio_len = audio_lens[i].item()
-            valid_len = valid_lens[i].item()
-
-            if valid_len == 0:
-                continue
-
-            valid_ind = torch.where(valid_mask[i])[0]
-            valid_data = text[i, valid_ind, :]  # [valid_len, text_dim]
-
-            base_repeat = audio_len // valid_len
-            remainder = audio_len % valid_len
-
-            indices = []
-            for j in range(valid_len):
-                repeat_count = base_repeat + (1 if j >= valid_len - remainder else 0)
-                indices.extend([j] * repeat_count)
-
-            indices = torch.tensor(indices[:audio_len], device=text.device, dtype=torch.long)
-            upsampled = valid_data[indices]  # [audio_len, text_dim]
-
-            upsampled_text[i, :audio_len, :] = upsampled
-
-        return upsampled_text
-
-    def forward(self, text: int["b nt"], seq_len, drop_text=False, audio_mask: bool["b n"] | None = None):  # noqa: F722
+    def forward(
+        self,
+        text: Tensor,
+        seq_len: int,
+        drop_text: bool = False,
+    ) -> Tuple[Tensor, Tensor]:
         text = text + 1  # use 0 as filler token. preprocess of batch pad -1, see list_str_to_idx()
         text = text[:, :seq_len]  # curtail if character tokens are more than the mel spec tokens
         batch, text_len = text.shape[0], text.shape[1]
@@ -125,9 +89,6 @@ class TextEmbedding(nn.Module):
             else:
                 text = self.text_blocks(text)
 
-        if self.average_upsampling:
-            text = self.average_upsample_text_by_mask(text, ~text_mask, audio_mask)
-
         return text, text_mask
 
 
@@ -135,31 +96,52 @@ class TextEmbedding(nn.Module):
 
 
 class InputEmbedding(nn.Module):
-    def __init__(self, mel_dim, text_dim, out_dim, midi_dim=128):
+    def __init__(
+        self,
+        mel_dim: int,
+        text_dim: int,
+        out_dim: int,
+        melody_num_embeds: int = 128,
+        melody_dim: int = 128,
+        tag_dim: int = 4,
+    ):
         super().__init__()
-        self.proj = nn.Linear(mel_dim * 2 + text_dim + midi_dim, out_dim)
+        self.proj = nn.Linear(mel_dim * 2 + text_dim + melody_dim + tag_dim, out_dim)
         self.conv_pos_embed = ConvPositionEmbedding(dim=out_dim)
 
-        self.melody_proj = nn.Linear(128, 128)
+        self.melody_embed = nn.Embedding(melody_num_embeds + 1, melody_dim)
+        self.melody_proj = nn.Linear(melody_dim, melody_dim)
+        self.null_melody = nn.Parameter(torch.randn(1, 1, melody_dim))
+        self.melody_dim = melody_dim
 
     def forward(
         self,
-        x: float["b n d"],  # noqa: F722
-        cond: float["b n d"],  # noqa: F722
-        text_embed: float["b n d"],  # noqa: F722
-        melody,
-        drop_audio_cond=False,
-        drop_melody=False,
-    ):
+        x: Tensor,
+        cond: Tensor,
+        text_embed: Tensor,
+        melody: Optional[Tensor],
+        tag_embedding: Tensor,
+        drop_audio_cond: bool = False,
+        drop_melody: bool = False,
+    ) -> Tensor:
+        _batch, _seq_len, _ = x.shape
+
         if drop_audio_cond:  # cfg for cond audio
             cond = torch.zeros_like(cond)
 
-        melody = self.melody_proj(melody)
+        if melody is None:
+            # melody = torch.zeros((_batch, _seq_len, self.melody_dim), device=x.device, dtype=x.dtype)
+            melody = self.null_melody.expand(x.size(0), x.size(1), 128)
+        else:
+            melody = melody + 1
+            melody = self.melody_embed(melody)
+            melody = self.melody_proj(melody)
+            if drop_melody:  # cfg for melody
+                melody = self.null_melody.expand(x.size(0), x.size(1), 128)
 
-        if drop_melody:  # cfg for f0
-            melody = melody * 0
+        tag_embedding = tag_embedding.unsqueeze(1).expand(-1, _seq_len, -1)
 
-        x = self.proj(torch.cat((x, cond, text_embed, melody), dim=-1))
+        x = self.proj(torch.cat((x, cond, text_embed, melody, tag_embedding), dim=-1))
         x = self.conv_pos_embed(x) + x
         return x
 
@@ -171,182 +153,231 @@ class DiT(nn.Module):
     def __init__(
         self,
         *,
-        dim,
-        depth=8,
-        heads=8,
-        dim_head=64,
-        dropout=0.1,
-        ff_mult=4,
-        mel_dim=100,
-        text_num_embeds=256,
-        text_dim=None,
-        n_f0_bins=512,
-        text_mask_padding=True,
-        text_embedding_average_upsampling=False,
-        qk_norm=None,
-        conv_layers=0,
-        pe_attn_head=None,
-        attn_backend="torch",  # "torch" | "flash_attn"
-        attn_mask_enabled=False,
-        long_skip_connection=False,
-        checkpoint_activations=False,
+        dim: int,
+        depth: int = 8,
+        heads: int = 8,
+        ff_mult: int = 4,
+        freq_dim: int = 256,
+        feat_dim: int = 100,
+        text_num_embeds: int = 256,
+        text_dim: Optional[int] = None,
+        melody_num_embeds: int = 128,
+        melody_dim: int = 128,
+        tag_dim: int = 4,
+        text_mask_padding: bool = True,
+        qk_norm: Optional[bool] = None,
+        conv_layers: int = 0,
     ):
         super().__init__()
 
-        self.time_embed = TimestepEmbedding(dim)
+        self.freq_dim = freq_dim
+        self.time_embedding = nn.Sequential(nn.Linear(256, dim), nn.SiLU(), nn.Linear(dim, dim))
+        self.time_projection = nn.Sequential(nn.SiLU(), nn.Linear(dim, dim * 6))
+
         if text_dim is None:
-            text_dim = mel_dim
+            text_dim = feat_dim
+
         self.text_embed = TextEmbedding(
             text_num_embeds,
             text_dim,
             mask_padding=text_mask_padding,
-            average_upsampling=text_embedding_average_upsampling,
             conv_layers=conv_layers,
         )
         self.text_cond, self.text_uncond = None, None  # text cache
-        self.input_embed_with_melody = InputEmbedding(mel_dim, text_dim, dim)
+        self.input_embed = InputEmbedding(
+            feat_dim, text_dim, dim, melody_num_embeds=melody_num_embeds, melody_dim=melody_dim, tag_dim=tag_dim
+        )
 
-        self.rotary_embed = RotaryEmbedding(dim_head)
+        self.speech_tag = nn.Parameter(torch.randn(tag_dim))
+        self.singing_tag = nn.Parameter(torch.randn(tag_dim))
 
+        self.register_buffer("freqs", rope_params(4096, dim // heads), persistent=False)
+
+        self.feat_dim = feat_dim
         self.dim = dim
         self.depth = depth
 
+        if qk_norm is None:
+            qk_norm = True
+
         self.transformer_blocks = nn.ModuleList(
             [
-                DiTBlock(
+                WanAttentionBlock(
                     dim=dim,
-                    heads=heads,
-                    dim_head=dim_head,
-                    ff_mult=ff_mult,
-                    dropout=dropout,
+                    ffn_dim=dim * ff_mult,
+                    num_heads=heads,
+                    window_size=(-1, -1),
                     qk_norm=qk_norm,
-                    pe_attn_head=pe_attn_head,
-                    attn_backend=attn_backend,
-                    attn_mask_enabled=attn_mask_enabled,
+                    cross_attn_norm=False,
+                    eps=1e-6,
+                    task_dim=tag_dim,
                 )
                 for _ in range(depth)
             ]
         )
-        self.long_skip_connection = nn.Linear(dim * 2, dim, bias=False) if long_skip_connection else None
 
-        self.norm_out = AdaLayerNorm_Final(dim)  # final modulation
-        self.proj_out = nn.Linear(dim, mel_dim)
-
-        self.checkpoint_activations = checkpoint_activations
+        # final modulation
+        self.head = Head(dim, feat_dim, patch_size=(1,), eps=1e-6)
 
         self.initialize_weights()
 
     def initialize_weights(self):
-        # Zero-out AdaLN layers in DiT blocks:
-        for block in self.transformer_blocks:
-            nn.init.constant_(block.attn_norm.linear.weight, 0)
-            nn.init.constant_(block.attn_norm.linear.bias, 0)
+        """Initialize weights for the model."""
+        # basic init
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
 
-        # Zero-out output layers:
-        nn.init.constant_(self.norm_out.linear.weight, 0)
-        nn.init.constant_(self.norm_out.linear.bias, 0)
-        nn.init.constant_(self.proj_out.weight, 0)
-        nn.init.constant_(self.proj_out.bias, 0)
+        for m in self.text_embed.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, std=0.02)
+        for m in self.time_embedding.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, std=0.02)
 
-        nn.init.zeros_(self.input_embed_with_melody.melody_proj.weight)
-        nn.init.zeros_(self.input_embed_with_melody.melody_proj.bias)
+        # init output layer
+        nn.init.zeros_(self.head.head.weight)
 
-    def ckpt_wrapper(self, module):
-        # https://github.com/chuanyangjin/fast-DiT/blob/main/models.py
-        def ckpt_forward(*inputs):
-            outputs = module(*inputs)
-            return outputs
-
-        return ckpt_forward
+        # zero init melody proj
+        if hasattr(self.input_embed, "melody_proj"):
+            nn.init.zeros_(self.input_embed.melody_proj.weight)
+            nn.init.zeros_(self.input_embed.melody_proj.bias)
 
     def get_input_embed(
         self,
-        x,  # b n d
-        cond,  # b n d
-        text,  # b nt
-        melody,  # b n
+        x: Tensor,
+        cond: Tensor,
+        text: Tensor,
+        melody: Optional[Tensor],
+        tag_embedding: Tensor,
         drop_audio_cond: bool = False,
         drop_text: bool = False,
         drop_melody: bool = False,
         cache: bool = True,
-        audio_mask: bool["b n"] | None = None,  # noqa: F722
-    ):
+        audio_mask: Optional[Tensor] = None,
+    ) -> Tensor:
         seq_len = x.shape[1]
 
         if cache:
             if drop_text:
                 if self.text_uncond is None:
-                    self.text_uncond, _ = self.text_embed(text, seq_len, drop_text=True, audio_mask=audio_mask)
+                    self.text_uncond, _ = self.text_embed(text, seq_len, drop_text=True)
                 text_embed = self.text_uncond
             else:
                 if self.text_cond is None:
-                    self.text_cond, _ = self.text_embed(text, seq_len, drop_text=False, audio_mask=audio_mask)
+                    self.text_cond, _ = self.text_embed(text, seq_len, drop_text=False)
                 text_embed = self.text_cond
         else:
-            text_embed, text_mask = self.text_embed(text, seq_len, drop_text=drop_text, audio_mask=audio_mask)
+            text_embed, text_mask = self.text_embed(text, seq_len, drop_text=drop_text)
 
-        if melody is None:
-            melody = torch.zeros((x.size(0), x.size(1)), device=x.device, dtype=torch.long)
-
-        x = self.input_embed_with_melody(
-            x, cond, text_embed, melody, drop_audio_cond=drop_audio_cond, drop_melody=drop_melody
+        x = self.input_embed(
+            x,
+            cond,
+            text_embed,
+            melody,
+            tag_embedding=tag_embedding,
+            drop_audio_cond=drop_audio_cond,
+            drop_melody=drop_melody,
         )
 
-        return x, None
-
-    def clear_cache(self):
-        self.text_cond, self.text_uncond = None, None
+        return x
 
     def forward(
         self,
-        x: float["b n d"],  # nosied input audio  # noqa: F722
-        cond: float["b n d"],  # masked cond audio  # noqa: F722
-        text: int["b nt"],  # text  # noqa: F722
-        time: float["b"] | float[""],  # time step  # noqa: F821 F722
-        melody: float["b n"] | None = None,  # f0  # noqa: F722
-        mask: bool["b n"] | None = None,  # noqa: F722
+        x: Tensor,
+        cond: Tensor,
+        text: Tensor,
+        time: Tensor | float,
+        melody: Optional[Tensor] = None,
+        tags: List[str] = None,
+        mask: Optional[Tensor] = None,
+        drop_audio_cond: bool = False,
+        drop_text: bool = False,
+        drop_melody: bool = False,
+        cfg_infer: bool = False,
         cache: bool = False,
-    ):
+    ) -> Tensor:
         batch, seq_len = x.shape[0], x.shape[1]
-        if time.ndim == 0:
+        if isinstance(time, (int, float)):
+            time = torch.tensor([time], device=x.device).repeat(batch)
+        elif time.ndim == 0:
             time = time.repeat(batch)
 
         # t: conditioning time, text: text, x: noised audio + cond audio + text
-        t = self.time_embed(time)
-        x_cond, _ = self.get_input_embed(
-            x,
-            cond,
-            text,
-            melody,
-            drop_audio_cond=False,
-            drop_text=False,
-            drop_melody=False,
-            cache=cache,
-            audio_mask=mask,
-        )
-        x_uncond, _ = self.get_input_embed(
-            x, cond, text, melody, drop_audio_cond=True, drop_text=True, drop_melody=True, cache=cache, audio_mask=mask
-        )
-        x = torch.cat((x_cond, x_uncond), dim=0)
-        t = torch.cat((t, t), dim=0)
-        mask = torch.cat((mask, mask), dim=0) if mask is not None else None
+        # time embeddings
+        with torch.amp.autocast(device_type="cuda", dtype=torch.float32):
+            e = self.time_embedding(sinusoidal_embedding_1d(self.freq_dim, time).float())
+            e0 = self.time_projection(e).unflatten(1, (6, self.dim))
 
-        rope = self.rotary_embed.forward_from_seq_len(seq_len)
+        if tags is None:
+            tags = ["speech"] * batch
 
-        if self.long_skip_connection is not None:
-            residual = x
+        tag_embeddings = []
+        for tag in tags:
+            if tag == "speech":
+                tag_embeddings.append(self.speech_tag)
+            elif tag == "singing":
+                tag_embeddings.append(self.singing_tag)
+            else:
+                raise ValueError(f"Unknown tag: {tag}")
+        tag_embedding = torch.stack(tag_embeddings, dim=0)
+
+        if cfg_infer:  # pack cond & uncond forward: b n d -> 3b n d
+            x_cond = self.get_input_embed(
+                x,
+                cond,
+                text,
+                melody,
+                tag_embedding,
+                drop_audio_cond=False,
+                drop_text=False,
+                drop_melody=False,
+                cache=cache,
+                audio_mask=mask,
+            )
+            x_content_uncond = self.get_input_embed(
+                x,
+                cond,
+                text,
+                melody,
+                tag_embedding,
+                drop_audio_cond=False,
+                drop_text=True,
+                drop_melody=False,
+                cache=cache,
+                audio_mask=mask,
+            )
+
+            x = torch.cat((x_cond, x_content_uncond), dim=0)
+            e = torch.cat((e, e), dim=0)
+            e0 = torch.cat((e0, e0), dim=0)
+            tag_embedding = torch.cat((tag_embedding, tag_embedding), dim=0)
+
+            mask = torch.cat((mask, mask), dim=0) if mask is not None else None
+        else:
+            x = self.get_input_embed(
+                x,
+                cond,
+                text,
+                melody,
+                tag_embedding,
+                drop_audio_cond=drop_audio_cond,
+                drop_text=drop_text,
+                drop_melody=drop_melody,
+                cache=cache,
+                audio_mask=mask,
+            )
+
+        if mask is not None:
+            seq_lens = mask.sum(dim=1).to(dtype=torch.int32)
+        else:
+            seq_lens = torch.tensor([seq_len] * x.shape[0], device=x.device, dtype=torch.int32)
 
         for block in self.transformer_blocks:
-            if self.checkpoint_activations:
-                # https://pytorch.org/docs/stable/checkpoint.html#torch.utils.checkpoint.checkpoint
-                x = torch.utils.checkpoint.checkpoint(self.ckpt_wrapper(block), x, t, mask, rope, use_reentrant=False)
-            else:
-                x = block(x, t, mask=mask, rope=rope)
+            x = block(x, e0, seq_lens, self.freqs, task_embedding=tag_embedding)
 
-        if self.long_skip_connection is not None:
-            x = self.long_skip_connection(torch.cat((x, residual), dim=-1))
-
-        x = self.norm_out(x, t)
-        output = self.proj_out(x)
+        output = self.head(x, e)
 
         return output
