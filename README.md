@@ -7,6 +7,7 @@
 [![Paper](https://img.shields.io/badge/Paper-YingMusic--Singer-blue)](https://arxiv.org/pdf/2512.04779)
 [![Hugging Face](https://img.shields.io/badge/🤗%20HuggingFace-YingMusic--Singer-yellow)](https://huggingface.co/GiantAILab/YingMusic-Singer)
 [![ModelScope](https://img.shields.io/badge/🔮%20ModelScope-YingMusic--Singer-purple)](https://www.modelscope.cn/models/giantailab/YingMusic-Singer/)
+
 </div>
 
 ---
@@ -61,7 +62,11 @@ cd YingMusic-Singer
 conda create -n singer python=3.12
 conda activate singer
 
+# Install PyTorch with CUDA 12.6 support
 pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+# Install flash_attn
+# pip3 install https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.1/flash_attn-2.8.1+cu12torch2.9cxx11abiTRUE-cp312-cp312-linux_x86_64.whl
+
 pip3 install -r requirements.txt
 
 unset PYTHONPATH
@@ -108,13 +113,11 @@ python src/singer/model.py --ckpt_path "ckpt_path" \
 
 We would like to express our gratitude to the following projects for their contributions:
 
-- **[F5-TTS](https://github.com/SWivid/F5-TTS)**: For model parameter initialization and key features in the DiT decoder.
-- **[SOME](https://github.com/openvpi/SOME)**: For the Singing-Oriented MIDI Extractor used as a melody teacher in our online melody learning.
-- **[Vocos](https://huggingface.co/charactr/vocos-mel-24khz)**: For the high-quality vocoder.
-- **[DiffRhythm](https://github.com/ASLP-lab/DiffRhythm)**: For providing valuable ideas and inspiration.
+- **[SOME](https://github.com/openvpi/SOME)**: For the Singing-Oriented MIDI Extractor, which we use as our melody extractor.
+- **[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)**: For the RMVPE model used for pitch extraction.
+- **[SongBloom](https://github.com/tencent-ailab/SongBloom)**: For the [Stable Audio VAE](https://github.com/Stability-AI/stable-audio-tools) implementation.
 
 ## Citation 🧾
-
 
 If you use YingMusic-Singer for research, please cite:
 
@@ -126,6 +129,7 @@ If you use YingMusic-Singer for research, please cite:
   year={2025}
 }
 ```
+
 ---
 
 ## License 📝
