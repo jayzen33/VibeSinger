@@ -43,13 +43,15 @@ Our approach leverages a **Diffusion Transformer (DiT)** based generative model,
 
 - **2025-11-27**: Released the technical report.
 - **2025-11-26**: Released the beta version's inference code and model checkpoints.
+- **2026-02-09**: Released the V1 version's inference code and model checkpoints.
+- **2026-02-09**: Released the V1 version's [demo pages](https://giantailab.github.io/YingMusic-Singer-demo/).
 
 ---
 
 ## Roadmap & TODO 🗺️
 
 - [x] Release beta version inference code and model checkpoints (currently supports Chinese & lower audio quality).
-- [ ] Release V1 Version: Support for Chinese & English singing with higher audio quality and better generalization.
+- [x] Release V1 Version: Support for Chinese & English singing with higher audio quality and better generalization.
 
 ---
 
@@ -65,7 +67,7 @@ conda activate singer
 # Install PyTorch with CUDA 12.6 support
 pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu126
 # Install flash_attn
-# pip3 install https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.1/flash_attn-2.8.1+cu12torch2.9cxx11abiTRUE-cp312-cp312-linux_x86_64.whl
+pip3 install https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.1/flash_attn-2.8.1+cu12torch2.9cxx11abiTRUE-cp312-cp312-linux_x86_64.whl
 
 pip3 install -r requirements.txt
 
