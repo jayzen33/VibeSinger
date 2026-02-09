@@ -6,10 +6,12 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 import gradio as gr
 import torch
 
-from singer.model import YingSinger
+from singer.model import SAMPLE_RATE_24K, YingSinger
 
-# Initialize model
-# Check for CUDA availability
+# =============================================================================
+# Model Initialization
+# =============================================================================
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Loading model on {device}...")
 
@@ -21,18 +23,48 @@ except Exception as e:
     singer = None
 
 
-def run_inference(timbre_audio, timbre_content, melody_audio, lyrics, cfg_strength, nfe_steps, seed):
+# =============================================================================
+# Inference Function
+# =============================================================================
+
+
+def run_inference(
+    timbre_audio: str,
+    timbre_content: str,
+    melody_audio: str,
+    lyrics: str,
+    cfg_strength: float,
+    nfe_steps: int,
+    seed: int,
+) -> tuple[int, torch.Tensor]:
+    """Run singing voice synthesis inference.
+
+    Args:
+        timbre_audio: Path to timbre reference audio.
+        timbre_content: Text content of timbre reference.
+        melody_audio: Path to melody reference audio.
+        lyrics: Target lyrics to synthesize.
+        cfg_strength: Classifier-free guidance strength.
+        nfe_steps: Number of diffusion steps.
+        seed: Random seed.
+
+    Returns:
+        Tuple of (sample_rate, audio_data).
+
+    Raises:
+        gr.Error: If model not loaded or required inputs missing.
+    """
     if singer is None:
-        raise gr.Error("模型未成功加载，请检查日志。")
+        raise gr.Error("Model not loaded. Please check the logs. / 模型未成功加载，请检查日志。")
 
     if not timbre_audio:
-        raise gr.Error("请上传音色参考音频")
+        raise gr.Error("Please upload timbre reference audio. / 请上传音色参考音频")
     if not timbre_content:
-        raise gr.Error("请输入参考音频的文本内容")
+        raise gr.Error("Please enter reference audio text. / 请输入参考音频的文本内容")
     if not melody_audio:
-        raise gr.Error("请上传旋律参考音频")
+        raise gr.Error("Please upload melody reference audio. / 请上传旋律参考音频")
     if not lyrics:
-        raise gr.Error("请输入歌词")
+        raise gr.Error("Please enter lyrics. / 请输入歌词")
 
     try:
         print(f"Starting inference with seed: {seed}")
@@ -45,10 +77,9 @@ def run_inference(timbre_audio, timbre_content, melody_audio, lyrics, cfg_streng
             nfe_steps=int(nfe_steps),
             seed=int(seed) if seed is not None else 2025,
         )
-        # Return (sample_rate, audio_data)
-        return (24000, gen_wav)
+        return (SAMPLE_RATE_24K, gen_wav)
     except Exception as e:
-        raise gr.Error(f"生成失败: {str(e)}")
+        raise gr.Error(f"Generation failed: {str(e)} / 生成失败: {str(e)}")
 
 
 demo_inputs = [
