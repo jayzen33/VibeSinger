@@ -34,6 +34,7 @@ def run_inference(
     melody_audio: str,
     midi_file: str,
     lyrics: str,
+    pitch_shift: int,
     cfg_strength: float,
     nfe_steps: int,
     sde_strength: float,
@@ -47,6 +48,7 @@ def run_inference(
         melody_audio: Path to melody reference audio.
         midi_file: Path to MIDI file (optional).
         lyrics: Target lyrics to synthesize.
+        pitch_shift: Semitones to shift the melody key.
         cfg_strength: Classifier-free guidance strength.
         nfe_steps: Number of diffusion steps.
         sde_strength: Strength of SDE noise injection.
@@ -78,6 +80,7 @@ def run_inference(
             melody_audio_path=melody_audio,
             midi_file=midi_file,
             lyrics=lyrics,
+            pitch_shift=int(pitch_shift),
             cfg_strength=float(cfg_strength),
             nfe_steps=int(nfe_steps),
             sde_strength=float(sde_strength),
@@ -90,7 +93,7 @@ def run_inference(
 
 demo_inputs = [
     {
-        "timbre_audio": "resources/audios/zcd.wav",
+        "timbre_audio": "resources/audios/female.wav",
         "timbre_content": "冰刀划的圈 圈起了谁改变",
         "melody_audio": "resources/audios/female__Rnb_Funk__下等马_clip_001.wav",
         "midi_file": None,
@@ -98,30 +101,44 @@ demo_inputs = [
         "cfg_strength": 4.0,
         "nfe_steps": 32,
         "seed": 2025,
-        "sde_strength": 0.3,
+        "sde_strength": 0.1,
+        "pitch_shift": 0,
     },
+    # {
+    #     "timbre_audio": "resources/audios/zcd.wav",
+    #     "timbre_content": "冰刀划的圈 圈起了谁改变",
+    #     "melody_audio": "resources/audios/female__Rnb_Funk__下等马_clip_001.wav",
+    #     "midi_file": None,
+    #     "lyrics": "心敞开来，你泪水别太奇怪，会好的。没伤到未来，如果我爱得太深，请原谅我。疗伤十载，没出门没再恋爱，吃光回忆七八亩菜，练就这心坚强，莫以泪洗面哉。曙光压台，希望未衰，新生活谁还要来？速来领爱，别耽误我心扉敞开怀。",
+    #     "cfg_strength": 4.0,
+    #     "nfe_steps": 32,
+    #     "seed": 2025,
+    #     "sde_strength": 0.3,
+    #     "pitch_shift": 0,
+    # },
     {
-        "timbre_audio": "resources/audios/zcd.wav",
+        "timbre_audio": "resources/audios/female.wav",
         "timbre_content": "冰刀划的圈 圈起了谁改变",
-        "melody_audio": "resources/audios/female__Rnb_Funk__下等马_clip_001.wav",
-        "midi_file": None,
-        "lyrics": "心敞开来，你泪水别太奇怪，会好的。没伤到未来，如果我爱得太深，请原谅我。疗伤十载，没出门没再恋爱，吃光回忆七八亩菜，练就这心坚强，莫以泪洗面哉。曙光压台，希望未衰，新生活谁还要来？速来领爱，别耽误我心扉敞开怀。",
-        "cfg_strength": 4.0,
-        "nfe_steps": 32,
-        "seed": 2025,
-        "sde_strength": 0.3,
-    },
-    {
-        "timbre_audio": "resources/audios/p_1.wav",
-        "timbre_content": "你说 你演错了剧本 陪尽了天真心真",
-        # "melody_audio": "resources/audios/female__Rnb_Funk__下等马_clip_001.wav",
         "melody_audio": None,
         "midi_file": "resources/audios/female__Rnb_Funk__下等马_clip_001.mid",
         "lyrics": "心敞开来，你泪水别太奇怪，会好的。没伤到未来，如果我爱得太深，请原谅我。疗伤十载，没出门没再恋爱，吃光回忆七八亩菜，练就这心坚强，莫以泪洗面哉。曙光压台，希望未衰，新生活谁还要来？速来领爱，别耽误我心扉敞开怀。",
         "cfg_strength": 4.0,
         "nfe_steps": 32,
         "seed": 2025,
-        "sde_strength": 0.3,
+        "sde_strength": 0.1,
+        "pitch_shift": 0,
+    },
+    {
+        "timbre_audio": "resources/audios/male.wav",
+        "timbre_content": "在爱的回归线 又期待相见",
+        "melody_audio": None,
+        "midi_file": "resources/audios/female__Rnb_Funk__下等马_clip_001.mid",
+        "lyrics": "头抬起来，你表情别太奇怪，无大碍。没伤到脑袋，如果我下手太重，私密马赛。习武十载，没下山没谈恋爱，吃光后山七八亩菜，练就这套拳脚，莫以貌取人哉。暮色压台，擂鼓未衰，下一个谁还要来？速来领拜，别耽误我热蒸屉揭盖。",
+        "cfg_strength": 4.0,
+        "nfe_steps": 32,
+        "seed": 2025,
+        "sde_strength": 0.1,
+        "pitch_shift": -4,
     },
 ]
 
@@ -158,6 +175,7 @@ with gr.Blocks(title="YingSinger WebUI") as app:
 
     with gr.Accordion("高级参数设置", open=True):
         with gr.Row():
+            pitch_shift = gr.Slider(minimum=-12, maximum=12, value=0, step=1, label="Pitch Shift (升降调)")
             cfg_strength = gr.Slider(minimum=1.0, maximum=10.0, value=4.0, step=0.1, label="CFG Strength (引导强度)")
             nfe_steps = gr.Slider(minimum=10, maximum=200, value=32, step=1, label="NFE Steps (推理步数)")
             sde_strength = gr.Slider(minimum=0.0, maximum=1.0, value=0.3, step=0.01, label="SDE Strength")
@@ -176,6 +194,7 @@ with gr.Blocks(title="YingSinger WebUI") as app:
                 x["melody_audio"],
                 x["midi_file"],
                 x["lyrics"],
+                x["pitch_shift"],
                 x["cfg_strength"],
                 x["nfe_steps"],
                 x["sde_strength"],
@@ -189,6 +208,7 @@ with gr.Blocks(title="YingSinger WebUI") as app:
             melody_audio,
             midi_file,
             lyrics,
+            pitch_shift,
             cfg_strength,
             nfe_steps,
             sde_strength,
@@ -205,6 +225,7 @@ with gr.Blocks(title="YingSinger WebUI") as app:
             melody_audio,
             midi_file,
             lyrics,
+            pitch_shift,
             cfg_strength,
             nfe_steps,
             sde_strength,
