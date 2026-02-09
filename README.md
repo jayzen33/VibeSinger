@@ -5,6 +5,7 @@
 <div align="center">
 
 [![Paper](https://img.shields.io/badge/Paper-YingMusic--Singer--Beta-blue)](https://arxiv.org/pdf/2512.04779)
+[![Demo](https://img.shields.io/badge/🎶%20Demo-YingMusic--Singer-red)](https://giantailab.github.io/YingMusic-Singer-demo/)
 [![Hugging Face](https://img.shields.io/badge/🤗%20HuggingFace-YingMusic--Singer-yellow)](https://huggingface.co/GiantAILab/YingMusic-Singer)
 [![ModelScope](https://img.shields.io/badge/🔮%20ModelScope-YingMusic--Singer-purple)](https://www.modelscope.cn/models/giantailab/YingMusic-Singer/)
 
@@ -46,7 +47,7 @@ Our approach leverages a **Diffusion Transformer (DiT)** based generative model,
 
 - **2025-11-27**: Released the technical report.
 - **2025-11-26**: Released the beta version's inference code and model checkpoints.
-- **2026-02-09**: Released the V1 version's inference code and model checkpoints.
+- **2026-02-09**: Released V1 inference code and checkpoints, featuring bilingual support (Chinese & English), significantly improved audio quality, and enhanced generalization.
 - **2026-02-09**: Released the V1 version's [demo pages](https://giantailab.github.io/YingMusic-Singer-demo/).
 
 ---
