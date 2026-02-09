@@ -14,7 +14,7 @@ import pretty_midi
 import torch
 import torch.nn.functional as F
 import torchaudio
-from huggingface_hub import hf_hub_download
+from huggingface_hub import snapshot_download
 from omegaconf import OmegaConf
 from torch import nn
 from torch.nn.utils.rnn import pad_sequence
@@ -303,7 +303,7 @@ class YingSinger(nn.Module):
             device: Target device for model.
         """
         if singer_path is None:
-            singer_path = hf_hub_download(
+            singer_path = snapshot_download(
                 repo_id=self.HF_REPO_ID,
                 cache_dir=self.cache_dir,
             )
@@ -321,7 +321,7 @@ class YingSinger(nn.Module):
 
         # Load singer model weights
         stats = torch.load(
-            os.path.join(singer_path, "model_485000_ema_fixed.pt"),
+            os.path.join(singer_path, "singer.v1.pt"),
             map_location="cpu",
             weights_only=True,
         )
@@ -615,8 +615,10 @@ class YingSinger(nn.Module):
         *,
         melody_audio_path: Optional[Union[str, PathLike]] = None,
         midi_file: Optional[Union[str, PathLike]] = None,
+        pitch_shift: int = 0,
         cfg_strength: float = 4.0,
         nfe_steps: int = 32,
+        sde_strength: float = 0.0,
         seed: Optional[int] = DEFAULT_SEED,
     ) -> torch.Tensor:
         """Generate singing voice from reference audio and lyrics.
@@ -632,8 +634,10 @@ class YingSinger(nn.Module):
                 Either this or midi_file must be provided.
             midi_file: Path to MIDI file for melody reference.
                 Either this or melody_audio_path must be provided.
+            pitch_shift: Semitones to shift the melody key.
             cfg_strength: Classifier-free guidance strength for text conditioning.
             nfe_steps: Number of function evaluations (diffusion steps).
+            sde_strength: Strength of SDE noise injection.
             seed: Random seed for reproducibility.
 
         Returns:
@@ -663,10 +667,13 @@ class YingSinger(nn.Module):
 
         elif midi_file is not None:
             notemidi_seq = get_notemidi_from_file(midi_file)
-            melody = torch.from_numpy(notemidi_seq).unsqueeze(0).to(torch.float32)
+            melody = torch.from_numpy(notemidi_seq).unsqueeze(0).to(torch.float32).to(self.device)
             melody_len = melody.shape[1] // 4
         else:
             raise ValueError("Either melody_audio_path or midi_file must be provided.")
+
+        if pitch_shift != 0:
+            melody[melody > 0] += pitch_shift
 
         # Combine timbre and melody
         total_duration = timbre_audio_len + melody_len
@@ -681,6 +688,7 @@ class YingSinger(nn.Module):
             task_tag="singing",
             steps=nfe_steps,
             text_strength=cfg_strength,
+            sde_strength=sde_strength,
             seed=seed,
         )
 
@@ -747,7 +755,12 @@ def main():
         default=None,
         help="Path to MIDI file for melody.",
     )
-
+    parser.add_argument(
+        "--pitch_shift",
+        type=int,
+        default=0,
+        help="Semitones to shift the melody key.",
+    )
     # Optional arguments
     parser.add_argument(
         "--ckpt_path",
@@ -787,6 +800,7 @@ def main():
         melody_audio_path=args.melody_audio_path,
         midi_file=args.midi_file,
         lyrics=args.lyrics,
+        pitch_shift=args.pitch_shift,
         cfg_strength=args.cfg_strength,
         nfe_steps=args.nfe_steps,
         seed=args.seed,
