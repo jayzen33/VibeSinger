@@ -31,7 +31,7 @@ Our approach leverages a **Diffusion Transformer (DiT)** based generative model,
 - **Annotation-free Melody Guidance**: Automatically extracts melody from reference audio, eliminating the need for manual MIDI or phoneme alignment.
 - **Zero-Shot Capabilities**: Generates high-quality singing voices from arbitrary lyrics and melodies without fine-tuning on the target voice.
 - **Flexible Melody Input**: Accepts both reference audio and direct MIDI files as melody inputs for enhanced versatility.
-<!-- - **Flow-GRPO Reinforcement Learning**: Optimizes pronunciation, melodic accuracy, and musicality via multi-objective rewards. -->
+  <!-- - **Flow-GRPO Reinforcement Learning**: Optimizes pronunciation, melodic accuracy, and musicality via multi-objective rewards. -->
   <!-- - **Structured Guidance Mechanism**: Enhances melodic stability and coherence using similarity distribution constraints. -->
   <!-- - **Robust Generalization**: Outperforms existing methods in zero-shot synthesis and lyric replacement scenarios. -->
 
@@ -85,24 +85,36 @@ export PYTHONPATH=$(pwd)/src:$PYTHONPATH
 
 Download model checkpoints from [huggingface](https://huggingface.co/GiantAILab/YingMusic-Singer) or [modelscope](https://www.modelscope.cn/models/giantailab/YingMusic-Singer/)
 
-### 1. Singing Voice Synthesis
+> **Note**: If the pitch range of the reference audio differs significantly from the target melody (MIDI or audio), manually adjusting the key is recommended for optimal results.
 
 ```bash
-# Please keep the prompt audio duration is around 5-7 seconds, and the total duration does not exceed 30 seconds.
-python src/singer/model.py --ckpt_path "ckpt_path" \
-    --timbre_audio_path "resources/audios/0000.wav" \
+# Please keep the prompt audio duration is around 5-7 seconds, and the total duration does not exceed 45 seconds.
+
+# infer from MIDI file
+python src/singer/model.py --timbre_audio_path resources/audios/0000.wav \
     --timbre_audio_content "在爱的回归线 又期待相见" \
-    --melody_audio_path "resources/audios/mxsf.wav" \
-    --lyrics "你说 你爱了不该爱的人 你的心中满是伤痕" \
+    --midi_file "resources/audios/female__Rnb_Funk__下等马_clip_001.mid" \
+    --lyrics "头抬起来，你表情别太奇怪，无大碍。没伤到脑袋，如果我下手太重，私密马赛。习武十载，没下山没谈恋爱，吃光后山七八亩菜，练就这套拳脚，莫以貌取人哉。暮色压台，擂鼓未衰，下一个谁还要来？速来领拜，别耽误我热蒸屉揭盖。" \
     --out_path "outputs/test_yingsinger_zs.wav" \
-    --cfg_strength 3.0 \
-    --nfe_steps 100
+    --cfg_strength 4.0 \
+    --nfe_steps 64 \
+    --pitch_shift -4
+
+# infer from melody audio
+python src/singer/model.py --timbre_audio_path resources/audios/0000.wav \
+    --timbre_audio_content "在爱的回归线 又期待相见" \
+    --melody_audio_path "resources/audios/female__Rnb_Funk__下等马_clip_001.wav" \
+    --lyrics "头抬起来，你表情别太奇怪，无大碍。没伤到脑袋，如果我下手太重，私密马赛。习武十载，没下山没谈恋爱，吃光后山七八亩菜，练就这套拳脚，莫以貌取人哉。暮色压台，擂鼓未衰，下一个谁还要来？速来领拜，别耽误我热蒸屉揭盖。" \
+    --out_path "outputs/test_yingsinger_zs.wav" \
+    --cfg_strength 4.0 \
+    --nfe_steps 64 \
+    --pitch_shift -4
 ```
 
-### 2. Singing Voice Editing
+<!-- ### 2. Singing Voice Editing
 
 ```bash
-# Please keep the prompt audio duration is around 5-7 seconds, and the total duration does not exceed 30 seconds.
+# Please keep the prompt audio duration is around 5-7 seconds, and the total duration does not exceed 45 seconds.
 python src/singer/model.py --ckpt_path "ckpt_path" \
     --timbre_audio_path "resources/audios/mxsf.wav" \
     --timbre_audio_content "你说 你爱了不该爱的人 你的心中满是伤痕" \
@@ -111,7 +123,7 @@ python src/singer/model.py --ckpt_path "ckpt_path" \
     --out_path "outputs/test_yingsinger.wav" \
     --cfg_strength 3.0 \
     --nfe_steps 100
-```
+``` -->
 
 ---
 
