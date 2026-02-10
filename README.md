@@ -68,6 +68,7 @@ cd YingMusic-Singer
 conda create -n singer python=3.12
 conda activate singer
 
+# Note: the torch and flash_attn versions can be adjusted based on your GPU capabilities.
 # Install PyTorch with CUDA 12.6 support
 pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu126
 # Install flash_attn
