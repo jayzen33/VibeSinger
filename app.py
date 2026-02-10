@@ -104,18 +104,6 @@ demo_inputs = [
         "sde_strength": 0.1,
         "pitch_shift": 0,
     },
-    # {
-    #     "timbre_audio": "resources/audios/zcd.wav",
-    #     "timbre_content": "冰刀划的圈 圈起了谁改变",
-    #     "melody_audio": "resources/audios/female__Rnb_Funk__下等马_clip_001.wav",
-    #     "midi_file": None,
-    #     "lyrics": "心敞开来，你泪水别太奇怪，会好的。没伤到未来，如果我爱得太深，请原谅我。疗伤十载，没出门没再恋爱，吃光回忆七八亩菜，练就这心坚强，莫以泪洗面哉。曙光压台，希望未衰，新生活谁还要来？速来领爱，别耽误我心扉敞开怀。",
-    #     "cfg_strength": 4.0,
-    #     "nfe_steps": 32,
-    #     "seed": 2025,
-    #     "sde_strength": 0.3,
-    #     "pitch_shift": 0,
-    # },
     {
         "timbre_audio": "resources/audios/female.wav",
         "timbre_content": "冰刀划的圈，圈起了谁改变。",
@@ -144,10 +132,6 @@ demo_inputs = [
 
 
 with gr.Blocks(title="YingSinger WebUI") as app:
-    # <p>
-    #     当前模型为 <b style="color: #ff4b4b;">beta</b> 版本，仅支持 <b>中文 pop music 与较低的音质</b><br>
-    #     v1 版本 <b>(多语言 & 更高音质 & 更好的泛化性)</b> 将在 2025 年底之前推出，敬请期待...
-    # </p>
     gr.Markdown(
         """
         <div style="text-align: center;">
