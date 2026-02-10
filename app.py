@@ -94,13 +94,13 @@ def run_inference(
 demo_inputs = [
     {
         "timbre_audio": "resources/audios/female.wav",
-        "timbre_content": "冰刀划的圈 圈起了谁改变",
+        "timbre_content": "冰刀划的圈，圈起了谁改变。",
         "melody_audio": "resources/audios/female__Rnb_Funk__下等马_clip_001.wav",
         "midi_file": None,
         "lyrics": "头抬起来，你表情别太奇怪，无大碍。没伤到脑袋，如果我下手太重，私密马赛。习武十载，没下山没谈恋爱，吃光后山七八亩菜，练就这套拳脚，莫以貌取人哉。暮色压台，擂鼓未衰，下一个谁还要来？速来领拜，别耽误我热蒸屉揭盖。",
         "cfg_strength": 4.0,
         "nfe_steps": 32,
-        "seed": 2025,
+        "seed": 666,
         "sde_strength": 0.1,
         "pitch_shift": 0,
     },
@@ -118,27 +118,27 @@ demo_inputs = [
     # },
     {
         "timbre_audio": "resources/audios/female.wav",
-        "timbre_content": "冰刀划的圈 圈起了谁改变",
+        "timbre_content": "冰刀划的圈，圈起了谁改变。",
         "melody_audio": None,
         "midi_file": "resources/audios/female__Rnb_Funk__下等马_clip_001.mid",
         "lyrics": "心敞开来，你泪水别太奇怪，会好的。没伤到未来，如果我爱得太深，请原谅我。疗伤十载，没出门没再恋爱，吃光回忆七八亩菜，练就这心坚强，莫以泪洗面哉。曙光压台，希望未衰，新生活谁还要来？速来领爱，别耽误我心扉敞开怀。",
         "cfg_strength": 4.0,
         "nfe_steps": 32,
-        "seed": 2025,
+        "seed": 666,
         "sde_strength": 0.1,
         "pitch_shift": 0,
     },
     {
         "timbre_audio": "resources/audios/male.wav",
-        "timbre_content": "在爱的回归线 又期待相见",
+        "timbre_content": "在爱的回归线，又期待相见。",
         "melody_audio": None,
         "midi_file": "resources/audios/female__Rnb_Funk__下等马_clip_001.mid",
         "lyrics": "头抬起来，你表情别太奇怪，无大碍。没伤到脑袋，如果我下手太重，私密马赛。习武十载，没下山没谈恋爱，吃光后山七八亩菜，练就这套拳脚，莫以貌取人哉。暮色压台，擂鼓未衰，下一个谁还要来？速来领拜，别耽误我热蒸屉揭盖。",
         "cfg_strength": 4.0,
         "nfe_steps": 32,
-        "seed": 2025,
-        "sde_strength": 0.1,
-        "pitch_shift": -4,
+        "seed": 666,
+        "sde_strength": 0.3,
+        "pitch_shift": 0,
     },
 ]
 
@@ -179,11 +179,11 @@ with gr.Blocks(title="YingSinger WebUI") as app:
             cfg_strength = gr.Slider(minimum=1.0, maximum=10.0, value=4.0, step=0.1, label="CFG Strength (引导强度)")
             nfe_steps = gr.Slider(minimum=10, maximum=200, value=32, step=1, label="NFE Steps (推理步数)")
             sde_strength = gr.Slider(minimum=0.0, maximum=1.0, value=0.3, step=0.01, label="SDE Strength")
-            seed = gr.Number(value=2025, label="随机种子 (Seed)", precision=0)
+            seed = gr.Number(value=666, label="随机种子 (Seed)", precision=0)
 
     submit_btn = gr.Button("开始生成", variant="primary")
 
-    gr.Markdown("### 2. 生成结果")
+    gr.Markdown("### 2. 生成结果（可以尝试不同的 SDE Strength 和 Seed 以获取更理想的效果）")
     output_audio = gr.Audio(label="合成音频", type="numpy")
 
     gr.Examples(
