@@ -94,7 +94,7 @@ Download model checkpoints from [huggingface](https://huggingface.co/GiantAILab/
 
 # infer from MIDI file
 python src/singer/model.py --timbre_audio_path resources/audios/0000.wav \
-    --timbre_audio_content "在爱的回归线 又期待相见" \
+    --timbre_audio_content "在爱的回归线，又期待相见。" \
     --midi_file "resources/audios/female__Rnb_Funk__下等马_clip_001.mid" \
     --lyrics "头抬起来，你表情别太奇怪，无大碍。没伤到脑袋，如果我下手太重，私密马赛。习武十载，没下山没谈恋爱，吃光后山七八亩菜，练就这套拳脚，莫以貌取人哉。暮色压台，擂鼓未衰，下一个谁还要来？速来领拜，别耽误我热蒸屉揭盖。" \
     --out_path "outputs/test_yingsinger_zs.wav" \
@@ -104,7 +104,7 @@ python src/singer/model.py --timbre_audio_path resources/audios/0000.wav \
 
 # infer from melody audio
 python src/singer/model.py --timbre_audio_path resources/audios/0000.wav \
-    --timbre_audio_content "在爱的回归线 又期待相见" \
+    --timbre_audio_content "在爱的回归线，又期待相见。" \
     --melody_audio_path "resources/audios/female__Rnb_Funk__下等马_clip_001.wav" \
     --lyrics "头抬起来，你表情别太奇怪，无大碍。没伤到脑袋，如果我下手太重，私密马赛。习武十载，没下山没谈恋爱，吃光后山七八亩菜，练就这套拳脚，莫以貌取人哉。暮色压台，擂鼓未衰，下一个谁还要来？速来领拜，别耽误我热蒸屉揭盖。" \
     --out_path "outputs/test_yingsinger_zs.wav" \
