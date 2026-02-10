@@ -69,15 +69,12 @@ conda create -n singer python=3.12
 conda activate singer
 
 # Note: the torch and flash_attn versions can be adjusted based on your GPU capabilities.
-# Install PyTorch with CUDA 12.6 support
-pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu126
-# Install flash_attn
+# Install PyTorch
+pip3 install torch==2.9.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu126
+# Install flash-attention
 pip3 install https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.1/flash_attn-2.8.1+cu12torch2.9cxx11abiTRUE-cp312-cp312-linux_x86_64.whl
-
+# Install other dependencies
 pip3 install -r requirements.txt
-
-unset PYTHONPATH
-export PYTHONPATH=$(pwd)/src:$PYTHONPATH
 ```
 
 ---
@@ -91,6 +88,9 @@ Download model checkpoints from [huggingface](https://huggingface.co/GiantAILab/
 ### 1. Inference with CLI
 
 ```bash
+unset PYTHONPATH
+export PYTHONPATH=$(pwd)/src:$PYTHONPATH
+
 # Please keep the prompt audio duration is around 5-7 seconds, and the total duration does not exceed 45 seconds.
 
 # infer from MIDI file
@@ -101,7 +101,7 @@ python src/singer/model.py --timbre_audio_path resources/audios/0000.wav \
     --out_path "outputs/test_yingsinger_zs.wav" \
     --cfg_strength 4.0 \
     --nfe_steps 64 \
-    --pitch_shift -4
+    --pitch_shift -1
 
 # infer from melody audio
 python src/singer/model.py --timbre_audio_path resources/audios/0000.wav \
@@ -111,7 +111,7 @@ python src/singer/model.py --timbre_audio_path resources/audios/0000.wav \
     --out_path "outputs/test_yingsinger_zs.wav" \
     --cfg_strength 4.0 \
     --nfe_steps 64 \
-    --pitch_shift -4
+    --pitch_shift -1
 ```
 
 ### 2. Inference with Gradio Demo
