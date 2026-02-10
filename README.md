@@ -87,6 +87,8 @@ Download model checkpoints from [huggingface](https://huggingface.co/GiantAILab/
 
 > **Note**: If the pitch range of the reference audio differs significantly from the target melody (MIDI or audio), manually adjusting the key is recommended for optimal results.
 
+### 1. Inference with CLI
+
 ```bash
 # Please keep the prompt audio duration is around 5-7 seconds, and the total duration does not exceed 45 seconds.
 
@@ -109,6 +111,12 @@ python src/singer/model.py --timbre_audio_path resources/audios/0000.wav \
     --cfg_strength 4.0 \
     --nfe_steps 64 \
     --pitch_shift -4
+```
+
+### 2. Inference with Gradio Demo
+
+```bash
+python app.py
 ```
 
 <!-- ### 2. Singing Voice Editing
