@@ -47,7 +47,7 @@
 
 - **2025-11-27**: Released the technical report.
 - **2025-11-26**: Released the beta version's inference code and model checkpoints.
-- **2026-02-09**: Released V1 inference code and checkpoints, featuring bilingual support (Chinese & English), significantly improved audio quality, and enhanced generalization.
+- **2026-02-09**: Released V1 inference code and [checkpoints](https://huggingface.co/GiantAILab/YingMusic-Singer), featuring bilingual support (Chinese & English), significantly improved audio quality, and enhanced generalization.
 - **2026-02-09**: Released the V1 version's [demo pages](https://giantailab.github.io/YingMusic-Singer-demo/).
 
 ---
