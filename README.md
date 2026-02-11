@@ -37,11 +37,11 @@
 
 ---
 
-<p align="center">
+<!-- <p align="center">
   <img src="resources/imgs/main_v1.svg" width="720" alt="pipeline">
-</p>
+</p> -->
 
----
+<!-- --- -->
 
 ## News & Updates 🗞️
 
