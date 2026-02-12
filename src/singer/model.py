@@ -55,7 +55,8 @@ SAMPLE_RATE_48K = 48000
 
 # Model parameters
 DEFAULT_FEATURE_DIM = 64
-DEFAULT_FRAME_HZ = 100
+DEFAULT_MELODY_FRAME_HZ = 100
+DEFAULT_VAE_FRAME_HZ = 25
 DEFAULT_SEED = 2025
 
 # Mel spectrogram configuration for RMVPE
@@ -200,6 +201,8 @@ def get_notemidi_from_file(midi_file: Union[str, PathLike]) -> np.ndarray:
     notes = []
 
     for instrument in midi_data.instruments:
+        if instrument.is_drum:
+            continue
         for note in instrument.notes:
             notes.append(
                 {
@@ -211,13 +214,26 @@ def get_notemidi_from_file(midi_file: Union[str, PathLike]) -> np.ndarray:
                 }
             )
 
-    total_frames = int(midi_data.get_end_time() * DEFAULT_FRAME_HZ)
+    if not notes:
+        return np.array([], dtype=float)
+
+    # Calculate duration covering all notes and file length
+    max_note_end = max(note["end"] for note in notes)
+    total_duration = max(midi_data.get_end_time(), max_note_end)
+
+    total_frames = int(total_duration * DEFAULT_MELODY_FRAME_HZ)
     notemidi_seq = np.zeros(total_frames, dtype=float)
 
     for note in notes:
-        start_frame = int(note["start"] * DEFAULT_FRAME_HZ)
-        end_frame = int(note["end"] * DEFAULT_FRAME_HZ)
-        notemidi_seq[start_frame:end_frame] = note["pitch"]
+        start_frame = int(note["start"] * DEFAULT_MELODY_FRAME_HZ)
+        end_frame = int(note["end"] * DEFAULT_MELODY_FRAME_HZ)
+
+        # Ensure indices are within bounds and valid
+        start_frame = max(0, start_frame)
+        end_frame = min(total_frames, end_frame)
+
+        if end_frame > start_frame:
+            notemidi_seq[start_frame:end_frame] = note["pitch"]
 
     return notemidi_seq
 
@@ -676,8 +692,11 @@ class YingSinger(nn.Module):
             melody[melody > 0] += pitch_shift
 
         # Combine timbre and melody
-        total_duration = timbre_audio_len + melody_len
-        combined_melody = torch.cat([timbre_melody, melody], dim=1).to(self.device)
+        silence_frames = int(0.1 * DEFAULT_VAE_FRAME_HZ)
+        silence = torch.zeros((1, silence_frames), device=self.device, dtype=melody.dtype)
+        combined_melody = torch.cat([timbre_melody, silence, melody], dim=1).to(self.device)
+
+        total_duration = timbre_audio_len + int(0.1 * DEFAULT_VAE_FRAME_HZ) + melody_len
 
         # Generate
         generated, _ = self.sample(
