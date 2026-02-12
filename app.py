@@ -16,7 +16,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Loading model on {device}...")
 
 try:
-    singer = YingSinger(device=device)
+    singer = YingSinger(singer_path="ckpts", device=device)
     print("Model loaded successfully.")
 except Exception as e:
     print(f"Error loading model: {e}")
@@ -69,6 +69,15 @@ def run_inference(
         raise gr.Error("Please enter reference audio text. / 请输入参考音频的文本内容")
     if not melody_audio and not midi_file:
         raise gr.Error("Please upload melody reference audio or MIDI file. / 请上传旋律参考音频或 MIDI 文件")
+
+    if midi_file:
+        print(f"Using MIDI file for melody input: {midi_file}")
+        gr.Info("Using MIDI file as melody input. / 使用 MIDI 文件作为旋律输入。")
+        melody_audio = None
+    else:
+        print(f"Using audio file for melody input: {melody_audio}")
+        gr.Info("Using audio file as melody input. / 使用音频文件提取旋律。")
+
     if not lyrics:
         raise gr.Error("Please enter lyrics. / 请输入歌词")
 
@@ -126,7 +135,7 @@ demo_inputs = [
         "nfe_steps": 32,
         "seed": 666,
         "sde_strength": 0.3,
-        "pitch_shift": 0,
+        "pitch_shift": -9,
     },
 ]
 
@@ -219,4 +228,4 @@ with gr.Blocks(title="YingSinger WebUI") as app:
     )
 
 if __name__ == "__main__":
-    app.launch()
+    app.launch(allowed_paths=["."])
